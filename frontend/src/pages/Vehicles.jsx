@@ -160,11 +160,27 @@ export default function Vehicles() {
     setExpandedFlats(prev => ({ ...prev, [flat]: !prev[flat] }));
   };
 
-  const allFlats = Array.from(new Set([
-    ...DEFAULT_FLATS,
-    ...residents.map(r => r.unit_number),
-    ...vehicles.map(v => v.unit_number).filter(Boolean)
-  ])).sort(sortFlats);
+  const viewerFlat = user?.unit_number || user?.flat_number || residents.find(r => String(r.id) === String(user?.resident_id))?.unit_number;
+
+  const allFlats = React.useMemo(() => {
+    if (!isAdminOrManager) {
+      if (viewerFlat) return [viewerFlat];
+      const vehicleFlats = vehicles.map(v => v.unit_number).filter(Boolean);
+      return Array.from(new Set(vehicleFlats)).sort(sortFlats);
+    }
+    return Array.from(new Set([
+      ...DEFAULT_FLATS,
+      ...residents.map(r => r.unit_number),
+      ...vehicles.map(v => v.unit_number).filter(Boolean)
+    ])).sort(sortFlats);
+  }, [isAdminOrManager, viewerFlat, residents, vehicles]);
+
+  // Auto-expand viewer's own flat
+  React.useEffect(() => {
+    if (!isAdminOrManager && viewerFlat) {
+      setExpandedFlats({ [viewerFlat]: true });
+    }
+  }, [isAdminOrManager, viewerFlat]);
 
   const expandAll = () => {
     const exp = {};
@@ -383,17 +399,19 @@ export default function Vehicles() {
                                     >
                                       <Edit2 className="w-4 h-4" />
                                     </button>
-                                    <button
-                                      onClick={() => {
-                                        if (window.confirm(`Delete vehicle ${v.vehicle_number}?`)) {
-                                          deleteMutation.mutate(v.id);
-                                        }
-                                      }}
-                                      title="Delete vehicle record"
-                                      className="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition-colors"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    {isAdminOrManager && (
+                                      <button
+                                        onClick={() => {
+                                          if (window.confirm(`Delete vehicle ${v.vehicle_number}?`)) {
+                                            deleteMutation.mutate(v.id);
+                                          }
+                                        }}
+                                        title="Delete vehicle record"
+                                        className="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition-colors"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
@@ -486,17 +504,19 @@ export default function Vehicles() {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Delete vehicle ${v.vehicle_number}?`)) {
-                              deleteMutation.mutate(v.id);
-                            }
-                          }}
-                          className="text-rose-500 hover:text-rose-700 p-1.5 rounded-md hover:bg-rose-50 inline-flex items-center justify-center transition-colors"
-                          title="Delete vehicle record"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {isAdminOrManager && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Delete vehicle ${v.vehicle_number}?`)) {
+                                deleteMutation.mutate(v.id);
+                              }
+                            }}
+                            className="text-rose-500 hover:text-rose-700 p-1.5 rounded-md hover:bg-rose-50 inline-flex items-center justify-center transition-colors"
+                            title="Delete vehicle record"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -546,7 +566,7 @@ export default function Vehicles() {
               onChange={(e) => setFormData({ ...formData, resident_id: e.target.value })}
             >
               <option value="">-- Choose Flat --</option>
-              {residents.map(r => (
+              {(isAdminOrManager ? residents : residents.filter(r => r.unit_number === viewerFlat)).map(r => (
                 <option key={r.id} value={r.id}>
                   {r.unit_number} - {r.owner_name}
                 </option>

@@ -84,8 +84,46 @@ def get_transactions(
         query = query.filter(Transaction.category == category)
 
     txs = query.order_by(Transaction.transaction_date.desc(), Transaction.created_at.desc()).offset(skip).limit(limit).all()
+
+    cleaned = (current_user.role or "").strip().lower().replace("_", "-")
+    is_admin = cleaned in ["admin", "super-admin", "superadmin", "manager"]
+
+    user_unit = None
+    flat_res_ids = set()
+    if not is_admin:
+        if current_user.resident_id:
+            user_res = db.query(Resident).filter(Resident.id == int(current_user.resident_id)).first()
+            if user_res:
+                user_unit = user_res.unit_number
+        if not user_unit and getattr(current_user, 'unit_number', None):
+            user_unit = current_user.unit_number
+        if not user_unit and current_user.email:
+            res_by_email = db.query(Resident).filter(Resident.owner_email == current_user.email).first()
+            if res_by_email:
+                user_unit = res_by_email.unit_number
+
+        if user_unit:
+            flat_res_ids = {r.id for r in db.query(Resident).filter(Resident.unit_number == user_unit).all()}
+        elif current_user.resident_id:
+            flat_res_ids = {int(current_user.resident_id)}
+
     results = []
     for t in txs:
+        # For non-admin viewers: strict privacy protection - do not expose maintenance payments of other flats
+        if not is_admin:
+            if t.resident_id and t.resident_id not in flat_res_ids:
+                continue
+            if t.payment_id:
+                p = db.query(Payment).filter(Payment.id == t.payment_id).first()
+                if p and p.resident_id not in flat_res_ids:
+                    continue
+            if (t.transaction_type == "income" or (t.category and t.category.lower() == "maintenance")):
+                # Check if description mentions a unit other than viewer's
+                if user_unit:
+                    match = re.search(r'(NNG|NB)-[A-Za-z0-9]+', t.description or '', re.IGNORECASE)
+                    if match and match.group(0).upper() != user_unit.upper():
+                        continue
+
         res_name = None
         unit_str = None
         if t.resident_id:

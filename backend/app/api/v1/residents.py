@@ -29,7 +29,36 @@ def _can_manage_resident(current_user, target_resident: Resident, db: Session) -
 
 @router.get("", response_model=List[ResidentResponse])
 def get_residents(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    return resident_repo.get_all(db, skip=skip, limit=limit)
+    residents = resident_repo.get_all(db, skip=skip, limit=limit)
+    cleaned = (current_user.role or "").strip().lower().replace("_", "-")
+    is_admin = cleaned in ["admin", "super-admin", "superadmin", "manager"]
+    if is_admin:
+        return residents
+
+    # Determine user's flat to mask personal contact info for other flats
+    user_unit = None
+    if current_user.resident_id:
+        user_res = db.query(Resident).filter(Resident.id == int(current_user.resident_id)).first()
+        if user_res:
+            user_unit = user_res.unit_number
+    if not user_unit and getattr(current_user, 'unit_number', None):
+        user_unit = current_user.unit_number
+    if not user_unit and current_user.email:
+        res_by_email = db.query(Resident).filter(Resident.owner_email == current_user.email).first()
+        if res_by_email:
+            user_unit = res_by_email.unit_number
+
+    results = []
+    for r in residents:
+        is_own = bool(user_unit and r.unit_number and user_unit.strip().upper() == r.unit_number.strip().upper())
+        resp = ResidentResponse.model_validate(r)
+        if not is_own:
+            resp.owner_phone = "—"
+            resp.alternate_phone = None
+            resp.owner_email = "—"
+            resp.notes = None
+        results.append(resp)
+    return results
 
 @router.post("", response_model=ResidentResponse)
 def create_resident(resident_in: ResidentCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
@@ -55,7 +84,32 @@ def get_resident(id: int, db: Session = Depends(get_db), current_user = Depends(
     resident = resident_repo.get(db, id)
     if not resident:
         raise HTTPException(status_code=404, detail="Resident not found")
-    return resident
+        
+    cleaned = (current_user.role or "").strip().lower().replace("_", "-")
+    is_admin = cleaned in ["admin", "super-admin", "superadmin", "manager"]
+    if is_admin:
+        return resident
+
+    user_unit = None
+    if current_user.resident_id:
+        user_res = db.query(Resident).filter(Resident.id == int(current_user.resident_id)).first()
+        if user_res:
+            user_unit = user_res.unit_number
+    if not user_unit and getattr(current_user, 'unit_number', None):
+        user_unit = current_user.unit_number
+    if not user_unit and current_user.email:
+        res_by_email = db.query(Resident).filter(Resident.owner_email == current_user.email).first()
+        if res_by_email:
+            user_unit = res_by_email.unit_number
+
+    is_own = bool(user_unit and resident.unit_number and user_unit.strip().upper() == resident.unit_number.strip().upper())
+    resp = ResidentResponse.model_validate(resident)
+    if not is_own:
+        resp.owner_phone = "—"
+        resp.alternate_phone = None
+        resp.owner_email = "—"
+        resp.notes = None
+    return resp
 
 @router.put("/{id}", response_model=ResidentResponse)
 def update_resident(id: int, resident_in: ResidentUpdate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
@@ -170,9 +224,51 @@ def get_resident_payments(id: int, db: Session = Depends(get_db), current_user =
     if not resident:
         raise HTTPException(status_code=404, detail="Resident not found")
     
+    cleaned = (current_user.role or "").strip().lower().replace("_", "-")
+    is_admin = cleaned in ["admin", "super-admin", "superadmin", "manager"]
+    if not is_admin:
+        user_unit = None
+        if current_user.resident_id:
+            user_res = db.query(Resident).filter(Resident.id == int(current_user.resident_id)).first()
+            if user_res:
+                user_unit = user_res.unit_number
+        if not user_unit and getattr(current_user, 'unit_number', None):
+            user_unit = current_user.unit_number
+        if not user_unit and current_user.email:
+            res_by_email = db.query(Resident).filter(Resident.owner_email == current_user.email).first()
+            if res_by_email:
+                user_unit = res_by_email.unit_number
+
+        is_own = bool(user_unit and resident.unit_number and user_unit.strip().upper() == resident.unit_number.strip().upper())
+        if not is_own:
+            raise HTTPException(status_code=403, detail="Payment records of other flats cannot be viewed.")
+
     return db.query(Payment).filter(Payment.resident_id == id).order_by(Payment.month.desc()).all()
 
 @router.get("/{id}/transactions")
 def get_resident_transactions(id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     from app.models.transaction import Transaction
+    resident = resident_repo.get(db, id)
+    if not resident:
+        raise HTTPException(status_code=404, detail="Resident not found")
+
+    cleaned = (current_user.role or "").strip().lower().replace("_", "-")
+    is_admin = cleaned in ["admin", "super-admin", "superadmin", "manager"]
+    if not is_admin:
+        user_unit = None
+        if current_user.resident_id:
+            user_res = db.query(Resident).filter(Resident.id == int(current_user.resident_id)).first()
+            if user_res:
+                user_unit = user_res.unit_number
+        if not user_unit and getattr(current_user, 'unit_number', None):
+            user_unit = current_user.unit_number
+        if not user_unit and current_user.email:
+            res_by_email = db.query(Resident).filter(Resident.owner_email == current_user.email).first()
+            if res_by_email:
+                user_unit = res_by_email.unit_number
+
+        is_own = bool(user_unit and resident.unit_number and user_unit.strip().upper() == resident.unit_number.strip().upper())
+        if not is_own:
+            raise HTTPException(status_code=403, detail="Transaction records of other flats cannot be viewed.")
+
     return db.query(Transaction).filter(Transaction.resident_id == id).all()

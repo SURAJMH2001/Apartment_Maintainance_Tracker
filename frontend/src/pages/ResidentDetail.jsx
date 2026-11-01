@@ -9,7 +9,7 @@ import { formatCurrency, formatDate } from '../utils/formatters';
 import { 
   ArrowLeft, Phone, Mail, Calendar, Building, Home, 
   Car, ShieldCheck, CreditCard, Edit3, Trash2, CheckCircle2, 
-  XCircle, Plus 
+  XCircle, Plus, Lock 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
@@ -123,6 +123,12 @@ export default function ResidentDetail() {
   const ownershipType = res.ownership_type || res.type || 'Owner';
   const isActive = res.is_active !== false;
 
+  const isOwnFlat = Boolean(
+    (currentUser?.unit_number && unitNumber && currentUser.unit_number.toUpperCase() === unitNumber.toUpperCase()) ||
+    (String(currentUser?.resident_id) === String(id))
+  );
+  const canManage = isAdmin || isOwnFlat;
+
   // Filter vehicles matching this resident or unit
   const residentVehicles = allVehicles.filter(v => 
     String(v.resident_id) === String(id) || 
@@ -210,26 +216,30 @@ export default function ResidentDetail() {
 
         {/* Action Controls */}
         <div className="flex items-center gap-2.5 w-full md:w-auto justify-end flex-wrap pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
-          {/* Active / Inactive Toggle */}
-          <button
-            onClick={() => toggleStatusMutation.mutate()}
-            disabled={toggleStatusMutation.isPending}
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 ${
-              isActive 
-                ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
-                : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-            }`}
-          >
-            {isActive ? 'Mark Inactive' : 'Activate Resident'}
-          </button>
+          {/* Active / Inactive Toggle (Admin or Flat Owner) */}
+          {canManage && (
+            <button
+              onClick={() => toggleStatusMutation.mutate()}
+              disabled={toggleStatusMutation.isPending}
+              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 ${
+                isActive 
+                  ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+              }`}
+            >
+              {isActive ? 'Mark Inactive' : 'Activate Resident'}
+            </button>
+          )}
 
-          {/* Edit Profile */}
-          <button 
-            onClick={openEditModal}
-            className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold border border-indigo-200 flex items-center gap-1.5 transition-colors"
-          >
-            <Edit3 className="w-3.5 h-3.5" /> Edit Profile
-          </button>
+          {/* Edit Profile (Admin or Flat Owner) */}
+          {canManage && (
+            <button 
+              onClick={openEditModal}
+              className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold border border-indigo-200 flex items-center gap-1.5 transition-colors"
+            >
+              <Edit3 className="w-3.5 h-3.5" /> Edit Profile
+            </button>
+          )}
 
           {/* Delete (Admin Only) */}
           {isAdmin && (
@@ -301,94 +311,104 @@ export default function ResidentDetail() {
         </div>
 
         {/* Financial Dues Summary Card */}
-        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-2xl shadow-xl text-white space-y-4 selection:bg-indigo-500 selection:text-white">
-          <div className="flex items-center gap-2 border-b border-white/10 pb-3">
-            <CreditCard className="w-5 h-5 text-indigo-400" />
-            <h2 className="text-base font-bold">Maintenance Dues Status</h2>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-300">Total Paid (All Time):</span>
-              <span className="font-bold text-emerald-400 font-mono text-sm">{formatCurrency(totalPaid)}</span>
+        {canManage ? (
+          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-2xl shadow-xl text-white space-y-4 selection:bg-indigo-500 selection:text-white">
+            <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+              <CreditCard className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-base font-bold">Maintenance Dues Status</h2>
             </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-300">Outstanding Dues:</span>
-              <span className="font-bold text-rose-400 font-mono text-sm">{formatCurrency(totalPending)}</span>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-300">Total Paid (All Time):</span>
+                <span className="font-bold text-emerald-400 font-mono text-sm">{formatCurrency(totalPaid)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-300">Outstanding Dues:</span>
+                <span className="font-bold text-rose-400 font-mono text-sm">{formatCurrency(totalPending)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-300">Total Bill Records:</span>
+                <span className="font-semibold">{payments.length} Months</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-300">Total Bill Records:</span>
-              <span className="font-semibold">{payments.length} Months</span>
-            </div>
-          </div>
 
-          <button
-            onClick={() => navigate('/payments')}
-            className="w-full mt-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5"
-          >
-            <span>View Society Payments Ledger</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Payment History Table */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-emerald-600" />
-            <h3 className="text-base font-bold text-slate-900">Maintenance Billing History ({payments.length})</h3>
-          </div>
-        </div>
-
-        {payLoad ? (
-          <div className="p-8 flex justify-center"><Spinner /></div>
-        ) : payments.length === 0 ? (
-          <div className="py-8 text-center text-slate-400 text-xs">
-            No maintenance records generated for this resident yet.
+            <button
+              onClick={() => navigate('/payments')}
+              className="w-full mt-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5"
+            >
+              <span>View Society Payments Ledger</span>
+            </button>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Month</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Due Amount</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Paid Amount</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Due Date</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Payment Method</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {payments.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-900 text-center font-mono">
-                      {p.month}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-900 text-center font-mono">
-                      {formatCurrency(p.due_amount)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-emerald-600 text-center font-mono">
-                      {formatCurrency(p.paid_amount || 0)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 text-center">
-                      {p.due_date ? formatDate(p.due_date) : '—'}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-center">
-                      <Badge variant={p.status === 'paid' ? 'success' : (p.status === 'partial' ? 'info' : 'warning')}>
-                        {p.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 text-center">
-                      {p.payment_method || '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-center text-slate-500 space-y-2 flex flex-col items-center justify-center">
+            <Lock className="w-8 h-8 text-slate-400 mb-1" />
+            <h3 className="text-sm font-bold text-slate-800">Financial Records Private</h3>
+            <p className="text-xs text-slate-500 max-w-xs">Maintenance payment history and dues are confidential to flat residents and society administrators.</p>
           </div>
         )}
       </div>
+
+      {/* Payment History Table (Restricted to Flat Members and Admins) */}
+      {canManage && (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-emerald-600" />
+              <h3 className="text-base font-bold text-slate-900">Maintenance Billing History ({payments.length})</h3>
+            </div>
+          </div>
+
+          {payLoad ? (
+            <div className="p-8 flex justify-center"><Spinner /></div>
+          ) : payments.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 text-xs">
+              No maintenance records generated for this resident yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Month</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Due Amount</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Paid Amount</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Due Date</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Payment Method</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-slate-200">
+                  {payments.map(p => (
+                    <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-900 text-center font-mono">
+                        {p.month}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-900 text-center font-mono">
+                        {formatCurrency(p.due_amount)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-emerald-600 text-center font-mono">
+                        {formatCurrency(p.paid_amount || 0)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 text-center">
+                        {p.due_date ? formatDate(p.due_date) : '—'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                        <Badge variant={p.status === 'paid' ? 'success' : (p.status === 'partial' ? 'info' : 'warning')}>
+                          {p.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 text-center">
+                        {p.payment_method || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Edit Resident Profile Modal */}
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title={`Edit Resident Profile — ${unitNumber}`}>

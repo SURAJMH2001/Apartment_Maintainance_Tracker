@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from app.core.database import get_db
 from app.models.vehicle import Vehicle
 from app.models.resident import Resident
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_current_active_admin
 
 router = APIRouter()
 
@@ -62,9 +62,30 @@ def get_vehicles(
     current_user = Depends(get_current_user)
 ):
     query = db.query(Vehicle)
-    # If viewer, only show their flat vehicles
-    if current_user.role == "viewer" and current_user.resident_id:
-        query = query.filter(Vehicle.resident_id == str(current_user.resident_id))
+    cleaned = (current_user.role or "").strip().lower().replace("_", "-")
+    is_admin = cleaned in ["admin", "super-admin", "superadmin", "manager"]
+
+    # If viewer, find their flat and show all vehicles mapped to that flat for all family members
+    if not is_admin:
+        user_unit = None
+        if current_user.resident_id:
+            user_res = db.query(Resident).filter(Resident.id == int(current_user.resident_id)).first()
+            if user_res:
+                user_unit = user_res.unit_number
+        if not user_unit and getattr(current_user, 'unit_number', None):
+            user_unit = current_user.unit_number
+        if not user_unit and current_user.email:
+            res_by_email = db.query(Resident).filter(Resident.owner_email == current_user.email).first()
+            if res_by_email:
+                user_unit = res_by_email.unit_number
+
+        if user_unit:
+            flat_res_ids = [str(r.id) for r in db.query(Resident).filter(Resident.unit_number == user_unit).all()]
+            query = query.filter(Vehicle.resident_id.in_(flat_res_ids))
+        elif current_user.resident_id:
+            query = query.filter(Vehicle.resident_id == str(current_user.resident_id))
+        else:
+            return []
     elif resident_id:
         query = query.filter(Vehicle.resident_id == str(resident_id))
 
@@ -115,8 +136,19 @@ def update_vehicle(id: int, vehicle_in: VehicleCreate, db: Session = Depends(get
     if not db_vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     
-    if current_user.role == "viewer" and str(current_user.resident_id) != str(db_vehicle.resident_id):
-        raise HTTPException(status_code=403, detail="Permission denied")
+    cleaned = (current_user.role or "").strip().lower().replace("_", "-")
+    is_admin = cleaned in ["admin", "super-admin", "superadmin", "manager"]
+    if not is_admin:
+        user_res = db.query(Resident).filter(Resident.id == int(current_user.resident_id)).first() if current_user.resident_id else None
+        user_unit = user_res.unit_number if user_res else getattr(current_user, 'unit_number', None)
+        veh_res = None
+        try:
+            veh_res = db.query(Resident).filter(Resident.id == int(db_vehicle.resident_id)).first() if db_vehicle.resident_id else None
+        except Exception:
+            pass
+        veh_unit = veh_res.unit_number if veh_res else None
+        if not user_unit or user_unit != veh_unit:
+            raise HTTPException(status_code=403, detail="Permission denied")
         
     if vehicle_in.resident_id:
         db_vehicle.resident_id = str(vehicle_in.resident_id)
@@ -143,13 +175,10 @@ def update_vehicle(id: int, vehicle_in: VehicleCreate, db: Session = Depends(get
     return _build_vehicle_response(db_vehicle, res)
 
 @router.delete("/{id}")
-def delete_vehicle(id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+def delete_vehicle(id: int, db: Session = Depends(get_db), current_user = Depends(get_current_active_admin)):
     db_vehicle = db.query(Vehicle).filter(Vehicle.id == id).first()
     if not db_vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
-    # Viewers can only delete their own flat vehicles
-    if current_user.role == "viewer" and str(current_user.resident_id) != str(db_vehicle.resident_id):
-        raise HTTPException(status_code=403, detail="Permission denied")
     db.delete(db_vehicle)
     db.commit()
     return {"message": "Vehicle deleted"}

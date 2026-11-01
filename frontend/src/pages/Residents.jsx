@@ -246,12 +246,14 @@ export default function Residents() {
             </button>
           </div>
 
-          <button 
-            onClick={() => openAddModalForFlat()}
-            className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-sm transition-all"
-          >
-            <Plus className="w-4 h-4" /> Add Resident
-          </button>
+          {isAdmin && (
+            <button 
+              onClick={() => openAddModalForFlat()}
+              className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-sm transition-all"
+            >
+              <Plus className="w-4 h-4" /> Add Resident
+            </button>
+          )}
         </div>
       </div>
 

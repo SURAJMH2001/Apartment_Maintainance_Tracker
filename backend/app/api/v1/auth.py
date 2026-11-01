@@ -159,7 +159,9 @@ async def login(
         "token_type": "bearer",
         "user": {
             "id": user.id,
-            "name": user.display_name or user.username,
+            "name": user.display_name or (user.resident.owner_name if user.resident else None) or user.username,
+            "display_name": user.display_name or (user.resident.owner_name if user.resident else None) or user.username,
+            "username": user.username,
             "email": user.email,
             "role": user.role,
             "avatar": user.avatar_url,
@@ -368,7 +370,9 @@ def google_login(payload: GoogleAuthRequest, request: Request = None, db: Sessio
         "needs_onboarding": needs_onboarding,
         "user": {
             "id": user.id,
-            "name": user.display_name or user.username,
+            "name": user.display_name or (user.resident.owner_name if user.resident else None) or user.username,
+            "display_name": user.display_name or (user.resident.owner_name if user.resident else None) or user.username,
+            "username": user.username,
             "email": user.email,
             "phone": user.phone,
             "dob": user.dob,
@@ -394,9 +398,11 @@ def get_me(current_user: User = Depends(get_current_user)):
     unit_str = current_user.resident.unit_number if current_user.resident else None
     is_app = True if current_user.role in ["admin", "super-admin", "superadmin", "manager"] else bool(current_user.is_approved)
     needs_onb = bool(current_user.role == "viewer" and not current_user.resident_id)
+    disp_name = current_user.display_name or (current_user.resident.owner_name if current_user.resident else None) or current_user.username
     return {
         "id": current_user.id,
-        "name": current_user.display_name or current_user.username,
+        "name": disp_name,
+        "display_name": disp_name,
         "username": current_user.username,
         "email": current_user.email,
         "phone": current_user.phone,

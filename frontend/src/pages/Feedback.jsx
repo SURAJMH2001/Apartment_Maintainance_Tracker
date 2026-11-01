@@ -32,7 +32,7 @@ export default function Feedback() {
   const [isAllTime, setIsAllTime] = useState(false);
 
   const [formData, setFormData] = useState({
-    name: user?.display_name || user?.username || '',
+    name: user?.display_name || user?.name || user?.username || '',
     email: user?.email || '',
     unit: user?.unit_number || '',
     subject: '',
@@ -40,6 +40,18 @@ export default function Feedback() {
     rating: 5,
     category: 'service',
   });
+
+  // Keep form initialized with active user's DB display name and unit
+  React.useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        name: user.display_name || user.name || prev.name || user.username || '',
+        email: user.email || prev.email || '',
+        unit: user.unit_number || user.flat_number || prev.unit || ''
+      }));
+    }
+  }, [user]);
 
   const { data: rawFeedback = [], isLoading } = useQuery({
     queryKey: ['feedback'],
@@ -300,7 +312,7 @@ export default function Feedback() {
                           </div>
                           <div className="ml-auto flex items-center gap-3">
                             <StarRating rating={Number(item.rating) || 5} />
-                            {(isAdmin || (user?.email && item.email === user.email)) && (
+                            {isAdmin && (
                               <button
                                 onClick={() => {
                                   if (window.confirm('Delete this feedback review?')) {
@@ -351,7 +363,7 @@ export default function Feedback() {
 
         {/* Right Column: Submission Form */}
         <div className="space-y-4">
-          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 p-6 rounded-2xl shadow-xl text-white border border-indigo-500/20 relative overflow-hidden">
+          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 p-6 rounded-2xl shadow-xl text-white border border-indigo-500/20 relative overflow-hidden selection:bg-indigo-600 selection:text-white">
             {/* Glow Orbs */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />

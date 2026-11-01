@@ -40,9 +40,9 @@ export default function ReportIssue() {
   const [expandedComments, setExpandedComments] = useState({});
 
   const [formData, setFormData] = useState({
-    name: user?.display_name || user?.username || '',
+    name: user?.display_name || user?.name || user?.username || '',
     email: user?.email || '',
-    phone: '',
+    phone: user?.phone || '',
     unit: user?.unit_number || '',
     category: 'maintenance',
     priority: 'medium',
@@ -52,6 +52,19 @@ export default function ReportIssue() {
     dateNeeded: new Date().toISOString().split('T')[0],
     timeNeeded: 'Morning (9 AM - 12 PM)',
   });
+
+  // Keep form initialized with active user's DB display name, phone and unit
+  React.useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        name: user.display_name || user.name || prev.name || user.username || '',
+        email: user.email || prev.email || '',
+        phone: user.phone || prev.phone || '',
+        unit: user.unit_number || user.flat_number || prev.unit || ''
+      }));
+    }
+  }, [user]);
 
   const categories = [
     { id: 'maintenance', name: 'General Maintenance', icon: <Wrench className="w-4 h-4 text-indigo-500" /> },
@@ -397,7 +410,7 @@ export default function ReportIssue() {
                               <StatusBadge status={item.status} />
                             )}
 
-                            {(isAdmin || (user?.email && item.email === user.email)) && (
+                            {isAdmin && (
                               <button
                                 onClick={() => {
                                   if (window.confirm(`Delete issue "${item.title}"?`)) {

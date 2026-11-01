@@ -9,9 +9,14 @@ import Spinner from '../components/ui/Spinner';
 import Modal from '../components/ui/Modal';
 import { vendorsApi } from '../api/vendors';
 import toast from 'react-hot-toast';
+import useAuthStore from '../store/authStore';
 
 export default function Vendors() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const rawRole = (user?.role || 'viewer').toLowerCase().trim().replace(/_/g, '-');
+  const isAdmin = rawRole === 'admin' || rawRole === 'super-admin' || rawRole === 'superadmin' || rawRole === 'manager';
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [showModal, setShowModal] = useState(false);
@@ -333,17 +338,19 @@ export default function Vendors() {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Are you sure you want to delete vendor "${vendor.name}"?`)) {
-                              deleteMutation.mutate(vendor.id);
-                            }
-                          }}
-                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Delete Vendor"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to delete vendor "${vendor.name}"?`)) {
+                                deleteMutation.mutate(vendor.id);
+                              }
+                            }}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Delete Vendor"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

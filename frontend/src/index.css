@@ -10,11 +10,19 @@
   * {
     @apply border-slate-200;
   }
+}
 
-  ::selection {
-    background-color: #4f46e5;
-    color: #ffffff;
-  }
+::selection, *::selection {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+::-moz-selection, *::-moz-selection {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
   
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold text-slate-900;
@@ -27,7 +35,7 @@
   input, select, textarea {
     @apply focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent;
   }
-}
+
 
 @layer components {
   .glass-card {

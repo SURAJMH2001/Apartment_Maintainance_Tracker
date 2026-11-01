@@ -307,14 +307,8 @@ def delete_issue(id: int, db: Session = Depends(get_db), current_user = Depends(
         raise HTTPException(status_code=404, detail="Issue not found")
 
     is_admin = current_user.role in ['admin', 'super-admin', 'superadmin', 'manager']
-    is_owner = (
-        (iss.email and current_user.email and iss.email.lower() == current_user.email.lower()) or
-        (getattr(current_user, 'unit_number', None) and iss.unit == current_user.unit_number) or
-        (current_user.display_name and current_user.display_name.lower() in (iss.name or '').lower()) or
-        (current_user.username and current_user.username.lower() in (iss.name or '').lower())
-    )
-    if not is_admin and not is_owner:
-        raise HTTPException(status_code=403, detail="You can only delete your own reported issue")
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Only administrators can delete issues")
 
     # If linked to a task, clean up the task as well
     if iss.task_id:

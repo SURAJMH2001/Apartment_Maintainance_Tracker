@@ -10,6 +10,7 @@ import MonthNavigator from '../components/ui/MonthNavigator';
 import { tasksApi } from '../api/maintenance';
 import { toast } from 'react-hot-toast';
 import { formatDate } from '../utils/formatters';
+import useAuthStore from '../store/authStore';
 
 const categoryIcons = {
   Electrical: Zap,
@@ -21,6 +22,10 @@ const categoryIcons = {
 
 export default function Tasks() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const rawRole = (user?.role || 'viewer').toLowerCase().trim().replace(/_/g, '-');
+  const isAdmin = rawRole === 'admin' || rawRole === 'super-admin' || rawRole === 'superadmin' || rawRole === 'manager';
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -275,17 +280,19 @@ export default function Tasks() {
                         Reopen Task
                       </button>
                     )}
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`Delete task "${task.title}"?`)) {
-                          deleteMutation.mutate(task.id);
-                        }
-                      }}
-                      title="Delete task"
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Delete task "${task.title}"?`)) {
+                            deleteMutation.mutate(task.id);
+                          }
+                        }}
+                        title="Delete task"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

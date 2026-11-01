@@ -51,6 +51,29 @@ def get_payments(
     if status and status != "all":
         query = query.filter(Payment.status == status)
 
+    cleaned = (current_user.role or "").strip().lower().replace("_", "-")
+    is_admin = cleaned in ["admin", "super-admin", "superadmin", "manager"]
+    if not is_admin:
+        # Privacy restriction: viewers can only view maintenance payments for their own flat
+        user_unit = None
+        if current_user.resident_id:
+            user_res = db.query(Resident).filter(Resident.id == int(current_user.resident_id)).first()
+            if user_res:
+                user_unit = user_res.unit_number
+        if not user_unit and getattr(current_user, 'unit_number', None):
+            user_unit = current_user.unit_number
+        if not user_unit and current_user.email:
+            res_by_email = db.query(Resident).filter(Resident.owner_email == current_user.email).first()
+            if res_by_email:
+                user_unit = res_by_email.unit_number
+
+        if user_unit:
+            query = query.filter(Resident.unit_number == user_unit)
+        elif current_user.resident_id:
+            query = query.filter(Payment.resident_id == int(current_user.resident_id))
+        else:
+            return []
+
     payments = query.all()
     results = []
     for p in payments:

@@ -52,14 +52,8 @@ def delete_feedback(id: int, db: Session = Depends(get_db), current_user = Depen
         raise HTTPException(status_code=404, detail="Feedback not found")
 
     is_admin = current_user.role in ['admin', 'super-admin', 'superadmin', 'manager']
-    is_owner = (
-        (fb.email and current_user.email and fb.email.lower() == current_user.email.lower()) or
-        (getattr(fb, 'unit', None) and getattr(current_user, 'unit_number', None) and fb.unit == current_user.unit_number) or
-        (current_user.display_name and current_user.display_name.lower() in (fb.name or '').lower()) or
-        (current_user.username and current_user.username.lower() in (fb.name or '').lower())
-    )
-    if not is_admin and not is_owner:
-        raise HTTPException(status_code=403, detail="You can only delete your own feedback")
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Only society administrators can delete feedback entries")
 
     db.delete(fb)
     db.commit()

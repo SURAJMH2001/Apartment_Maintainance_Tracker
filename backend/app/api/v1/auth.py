@@ -476,10 +476,6 @@ def update_me(req: UpdateProfileRequest, db: Session = Depends(get_db), current_
         }
     }
 
-@router.post("/logout")
-def logout(current_user: User = Depends(get_current_user)):
-    return {"message": "Successfully logged out"}
-
 class ClaimAccessCodeRequest(BaseModel):
     access_code: str
 

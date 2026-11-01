@@ -75,6 +75,12 @@ export default function Dashboard() {
     enabled: isAdmin
   });
 
+  const displayedTrend = useMemo(() => {
+    if (!Array.isArray(trend) || trend.length === 0) return [];
+    const count = getMonthsForRange(selectedTimeRange);
+    return trend.slice(-count);
+  }, [trend, selectedTimeRange]);
+
   const { data: catData = [], isLoading: catLoading } = useQuery({
     staleTime: 5 * 60 * 1000,
     queryKey: ['dashboard-categories'],
@@ -417,12 +423,12 @@ export default function Dashboard() {
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-slate-100">
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                 <div>
                   <h3 className="font-semibold text-slate-900">Financial Overview</h3>
                   <p className="text-sm text-slate-500">Monthly society income and expense trends</p>
                 </div>
-                <div className="flex bg-slate-100 rounded-lg p-1">
+                <div className="flex bg-slate-100 rounded-lg p-1 self-start sm:self-auto">
                   {['30days', '90days', '1year'].map(r => (
                     <button
                       key={r}
@@ -435,10 +441,10 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
-              <div className="h-[300px] w-full">
+              <div className="h-[260px] sm:h-[300px] w-full">
                 {trendLoading ? <SkeletonDashboard /> : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={trend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <LineChart data={displayedTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                       <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
                       <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(val) => '₹' + (val / 1000) + 'k'} />

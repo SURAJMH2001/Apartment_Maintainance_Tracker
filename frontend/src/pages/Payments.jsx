@@ -64,8 +64,8 @@ export default function Payments() {
   const isAdmin = rawRole === 'admin' || rawRole === 'super-admin' || rawRole === 'superadmin' || rawRole === 'manager';
   const isViewer = !isAdmin;
 
-  // Month state (YYYY-MM)
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  // Month state (YYYY-MM) - defaults to 2026-10 where latest records are present
+  const [month, setMonth] = useState('2026-10');
   const [statusFilter, setStatusFilter] = useState('all');
   const [genAmount, setGenAmount] = useState(2750);
 

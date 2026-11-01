@@ -174,6 +174,7 @@ export default function Payments() {
     payerResidentId: '',
     paidAmount: '',
     paidDate: new Date().toISOString().slice(0, 10),
+    paymentMethod: 'UPI',
     roleFilter: 'all',
     notes: '',
     alreadyBilled: false,
@@ -364,7 +365,7 @@ export default function Payments() {
     mutationFn: ({ id, data }) => paymentsApi.pay(id, data),
     onSuccess: () => {
       toast.success('Payment recorded successfully');
-      setPayModal({ open: false, payment: null, payerResidentId: '', paidDate: '', roleFilter: 'all', notes: '', alreadyBilled: false });
+      setPayModal({ open: false, payment: null, payerResidentId: '', paidDate: '', paymentMethod: 'UPI', roleFilter: 'all', notes: '', alreadyBilled: false, isEdit: false });
       invalidateAllFinance();
     },
     onError: (err) => toast.error(err.response?.data?.detail || 'Failed to record payment')
@@ -1178,6 +1179,7 @@ export default function Payments() {
                       <SortHeader label="Due Balance" col="due_balance" activeCol={sortCol} dir={sortDir} onSort={(c) => handleTableSort(c, sortCol, sortDir, setSortCol, setSortDir)} align="center" />
                       <SortHeader label="Due Date" col="due_date" activeCol={sortCol} dir={sortDir} onSort={(c) => handleTableSort(c, sortCol, sortDir, setSortCol, setSortDir)} align="center" />
                       <SortHeader label="Paid Date" col="paid_date" activeCol={sortCol} dir={sortDir} onSort={(c) => handleTableSort(c, sortCol, sortDir, setSortCol, setSortDir)} align="center" />
+                      <SortHeader label="Mode" col="payment_method" activeCol={sortCol} dir={sortDir} onSort={(c) => handleTableSort(c, sortCol, sortDir, setSortCol, setSortDir)} align="center" />
                       <SortHeader label="Status" col="status" activeCol={sortCol} dir={sortDir} onSort={(c) => handleTableSort(c, sortCol, sortDir, setSortCol, setSortDir)} align="center" />
                       {isAdmin && <th className="px-4 py-3 text-center">Actions</th>}
                     </tr>
@@ -1185,13 +1187,13 @@ export default function Payments() {
                   <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
                     {isLoadingPayments ? (
                       <tr>
-                        <td colSpan={isAdmin ? 9 : 8} className="p-6 text-center text-slate-400">
+                        <td colSpan={isAdmin ? 10 : 9} className="p-6 text-center text-slate-400">
                           Loading payment ledger...
                         </td>
                       </tr>
                     ) : displayPayments.length === 0 ? (
                       <tr>
-                        <td colSpan={isAdmin ? 9 : 8} className="p-6 text-center text-slate-400">
+                        <td colSpan={isAdmin ? 10 : 9} className="p-6 text-center text-slate-400">
                           No maintenance records found for {getMonthLabel(month)}.
                         </td>
                       </tr>
@@ -1267,6 +1269,15 @@ export default function Payments() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-center">
+                              {p.payment_method ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">
+                                  {p.payment_method}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
                               <div className="flex justify-center">
                                 {getStatusBadge(p.status)}
                               </div>
@@ -1282,6 +1293,7 @@ export default function Payments() {
                                         payerResidentId: p.resident_id || '',
                                         paidAmount: p.due_amount || '',
                                         paidDate: new Date().toISOString().slice(0, 10),
+                                        paymentMethod: p.payment_method || 'UPI',
                                         roleFilter: 'all',
                                         notes: '',
                                         alreadyBilled: false,
@@ -1300,6 +1312,7 @@ export default function Payments() {
                                           payerResidentId: p.resident_id || '',
                                           paidAmount: p.paid_amount || p.due_amount || '',
                                           paidDate: p.paid_date ? String(p.paid_date).slice(0, 10) : new Date().toISOString().slice(0, 10),
+                                          paymentMethod: p.payment_method || 'UPI',
                                           roleFilter: 'all',
                                           notes: p.notes || '',
                                           alreadyBilled: false,
@@ -2213,6 +2226,7 @@ export default function Payments() {
             const payload = {
               paid_amount: parseFloat(payModal.paidAmount || payModal.payment.due_amount),
               paid_date: payModal.paidDate,
+              payment_method: payModal.paymentMethod || 'UPI',
               notes: payModal.notes
             };
             if (payModal.payerResidentId) {
@@ -2279,6 +2293,22 @@ export default function Payments() {
               onChange={e => setPayModal({ ...payModal, paidAmount: e.target.value })}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Payment Mode <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={payModal.paymentMethod || 'UPI'}
+              onChange={e => setPayModal({ ...payModal, paymentMethod: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            >
+              <option value="UPI">UPI (Google Pay, PhonePe, Paytm)</option>
+              <option value="Bank Transfer">Bank Transfer / NEFT / IMPS</option>
+              <option value="Cheque">Cheque</option>
+              <option value="Cash">Cash</option>
+            </select>
           </div>
 
           <div>

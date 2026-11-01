@@ -109,6 +109,39 @@ def create_vehicle(vehicle: VehicleCreate, db: Session = Depends(get_db), curren
 
     return _build_vehicle_response(db_vehicle, res)
 
+@router.put("/{id}", response_model=VehicleResponse)
+def update_vehicle(id: int, vehicle_in: VehicleCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    db_vehicle = db.query(Vehicle).filter(Vehicle.id == id).first()
+    if not db_vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    
+    if current_user.role == "viewer" and str(current_user.resident_id) != str(db_vehicle.resident_id):
+        raise HTTPException(status_code=403, detail="Permission denied")
+        
+    if vehicle_in.resident_id:
+        db_vehicle.resident_id = str(vehicle_in.resident_id)
+    if vehicle_in.vehicle_type:
+        db_vehicle.vehicle_type = vehicle_in.vehicle_type
+    
+    reg_number = (vehicle_in.vehicle_number or vehicle_in.registration_number or "").strip().upper()
+    if reg_number:
+        db_vehicle.registration_number = reg_number
+    if vehicle_in.make_model is not None:
+        db_vehicle.make_model = vehicle_in.make_model
+    if vehicle_in.parking_slot is not None:
+        db_vehicle.parking_slot = vehicle_in.parking_slot
+        
+    db.commit()
+    db.refresh(db_vehicle)
+    
+    res = None
+    try:
+        res = db.query(Resident).filter(Resident.id == int(db_vehicle.resident_id)).first()
+    except Exception:
+        pass
+        
+    return _build_vehicle_response(db_vehicle, res)
+
 @router.delete("/{id}")
 def delete_vehicle(id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     db_vehicle = db.query(Vehicle).filter(Vehicle.id == id).first()

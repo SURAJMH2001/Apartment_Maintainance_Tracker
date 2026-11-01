@@ -4,6 +4,7 @@ import { transactionsApi } from '../api/transactions';
 import Badge from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
 import Modal from '../components/ui/Modal';
+import MonthNavigator, { getMonthDisplay } from '../components/ui/MonthNavigator';
 import { StatCard } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import toast from 'react-hot-toast';
@@ -23,7 +24,8 @@ export default function Transactions() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'income' (Cr) | 'expense' (Dr)
-  const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' | '2026-11' | '2026-10'
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [isAllTime, setIsAllTime] = useState(false);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -117,11 +119,11 @@ export default function Transactions() {
       const matchesType = typeFilter === 'all' || actualType === typeFilter;
 
       const itemMonth = (t.transaction_date || t.date || '').slice(0, 7);
-      const matchesMonth = selectedMonth === 'all' || itemMonth === selectedMonth;
+      const matchesMonth = isAllTime || itemMonth === selectedMonth;
 
       return matchesSearch && matchesType && matchesMonth;
     });
-  }, [txsWithRunningBalance, search, typeFilter, selectedMonth]);
+  }, [txsWithRunningBalance, search, typeFilter, selectedMonth, isAllTime]);
 
   // Compute period totals
   const periodTotals = useMemo(() => {
@@ -319,54 +321,26 @@ export default function Transactions() {
             </select>
 
             {/* Month Filter Selector */}
-            <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200">
-              <button
-                onClick={() => setSelectedMonth('all')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                  selectedMonth === 'all'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                All Time
-              </button>
-
-              {availableMonths.slice(0, 3).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setSelectedMonth(m)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                    selectedMonth === m
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {formatMonthLabel(m)}
-                </button>
-              ))}
-
-              <input
-                type="month"
-                value={selectedMonth === 'all' ? '' : selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value || 'all')}
-                className="text-xs font-medium text-slate-700 bg-transparent border-0 focus:ring-0 py-0.5 cursor-pointer"
-                title="Select custom month"
-              />
-            </div>
+            <MonthNavigator
+              month={selectedMonth}
+              onChangeMonth={setSelectedMonth}
+              isAllTime={isAllTime}
+              onToggleAllTime={setIsAllTime}
+            />
           </div>
         </div>
 
         {/* Selected Month Summary Ribbon */}
-        {selectedMonth !== 'all' && (
+        {!isAllTime && (
           <div className="flex items-center justify-between text-xs font-semibold text-indigo-900 bg-indigo-50/80 px-3.5 py-2 rounded-xl border border-indigo-100">
             <span>
-              Period: <strong>{formatMonthLabel(selectedMonth)}</strong> • Credits: <span className="text-emerald-700 font-mono">+{formatCurrency(periodTotals.credits)}</span> • Debits: <span className="text-rose-700 font-mono">-{formatCurrency(periodTotals.debits)}</span>
+              Period: <strong>{getMonthDisplay(selectedMonth)}</strong> • Credits: <span className="text-emerald-700 font-mono">+{formatCurrency(periodTotals.credits)}</span> • Debits: <span className="text-rose-700 font-mono">-{formatCurrency(periodTotals.debits)}</span>
             </span>
             <button
-              onClick={() => setSelectedMonth('all')}
-              className="text-indigo-600 hover:text-indigo-800 underline text-xs ml-2"
+              onClick={() => setIsAllTime(true)}
+              className="text-indigo-600 hover:text-indigo-800 underline text-xs ml-2 cursor-pointer"
             >
-              Reset to All Time
+              Show All Time
             </button>
           </div>
         )}

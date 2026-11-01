@@ -6,6 +6,7 @@ import {
   Plus, 
   Search, 
   Trash2, 
+  Edit2,
   MapPin, 
   User, 
   CheckCircle2, 
@@ -40,6 +41,7 @@ export default function Vehicles() {
   const isAdminOrManager = role === 'admin' || role === 'super-admin' || role === 'superadmin' || role === 'manager';
 
   const [isOpen, setIsOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     resident_id: '',
@@ -64,6 +66,7 @@ export default function Vehicles() {
     onSuccess: () => {
       toast.success('Vehicle registered successfully');
       setIsOpen(false);
+      setEditingVehicle(null);
       setFormData({
         resident_id: '',
         vehicle_number: '',
@@ -77,6 +80,55 @@ export default function Vehicles() {
       toast.error(err?.response?.data?.detail || 'Failed to add vehicle');
     }
   });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => api.put(`/api/v1/vehicles/${id}`, data),
+    onSuccess: () => {
+      toast.success('Vehicle updated successfully');
+      setIsOpen(false);
+      setEditingVehicle(null);
+      setFormData({
+        resident_id: '',
+        vehicle_number: '',
+        vehicle_type: 'four_wheeler',
+        make_model: '',
+        parking_slot: ''
+      });
+      queryClient.invalidateQueries({ queryKey: ['vehicles-list'] });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.detail || 'Failed to update vehicle');
+    }
+  });
+
+  const openEditModal = (v) => {
+    setEditingVehicle(v);
+    setFormData({
+      resident_id: v.resident_id || '',
+      vehicle_number: v.vehicle_number || v.registration_number || '',
+      vehicle_type: v.vehicle_type || 'four_wheeler',
+      make_model: v.make_model || '',
+      parking_slot: v.parking_slot || ''
+    });
+    setIsOpen(true);
+  };
+
+  const openAddModal = (defaultFlat = null) => {
+    setEditingVehicle(null);
+    let defaultResId = '';
+    if (defaultFlat) {
+      const res = residents.find(r => r.unit_number === defaultFlat);
+      if (res) defaultResId = res.id;
+    }
+    setFormData({
+      resident_id: defaultResId,
+      vehicle_number: '',
+      vehicle_type: 'four_wheeler',
+      make_model: '',
+      parking_slot: ''
+    });
+    setIsOpen(true);
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/api/v1/vehicles/${id}`),
@@ -323,17 +375,26 @@ export default function Vehicles() {
                                       </span>
                                     </div>
                                   </div>
-                                  <button
-                                    onClick={() => {
-                                      if (window.confirm(`Delete vehicle ${v.vehicle_number}?`)) {
-                                        deleteMutation.mutate(v.id);
-                                      }
-                                    }}
-                                    title="Delete vehicle record"
-                                    className="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition-colors"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => openEditModal(v)}
+                                      title="Edit vehicle details"
+                                      className="text-slate-400 hover:text-indigo-600 p-1 rounded-lg hover:bg-indigo-50 transition-colors"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm(`Delete vehicle ${v.vehicle_number}?`)) {
+                                          deleteMutation.mutate(v.id);
+                                        }
+                                      }}
+                                      title="Delete vehicle record"
+                                      className="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition-colors"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
                                 </div>
                                 <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
                                   <div>
@@ -417,17 +478,26 @@ export default function Vehicles() {
                       {v.parking_slot || 'Open Parking'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`Delete vehicle ${v.vehicle_number}?`)) {
-                            deleteMutation.mutate(v.id);
-                          }
-                        }}
-                        className="text-rose-500 hover:text-rose-700 p-1.5 rounded-md hover:bg-rose-50 inline-flex items-center justify-center"
-                        title="Delete vehicle record"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => openEditModal(v)}
+                          className="text-slate-500 hover:text-indigo-600 p-1.5 rounded-md hover:bg-indigo-50 inline-flex items-center justify-center transition-colors"
+                          title="Edit vehicle details"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete vehicle ${v.vehicle_number}?`)) {
+                              deleteMutation.mutate(v.id);
+                            }
+                          }}
+                          className="text-rose-500 hover:text-rose-700 p-1.5 rounded-md hover:bg-rose-50 inline-flex items-center justify-center transition-colors"
+                          title="Delete vehicle record"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -444,19 +514,24 @@ export default function Vehicles() {
         )}
       </div>
 
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Register Resident Vehicle">
+      <Modal isOpen={isOpen} onClose={() => { setIsOpen(false); setEditingVehicle(null); }} title={editingVehicle ? "Edit Vehicle Details" : "Register Resident Vehicle"}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
             const plate = formData.vehicle_number.toUpperCase().trim();
-            createMutation.mutate({
+            const payload = {
               resident_id: formData.resident_id,
               vehicle_number: plate,
               registration_number: plate,
               vehicle_type: formData.vehicle_type,
               make_model: formData.make_model,
               parking_slot: formData.parking_slot
-            });
+            };
+            if (editingVehicle?.id) {
+              updateMutation.mutate({ id: editingVehicle.id, data: payload });
+            } else {
+              createMutation.mutate(payload);
+            }
           }}
           className="space-y-4 mt-4"
         >
@@ -541,10 +616,10 @@ export default function Vehicles() {
             </button>
             <button
               type="submit"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending}
               className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
             >
-              {createMutation.isPending ? 'Saving...' : 'Save Vehicle'}
+              {(createMutation.isPending || updateMutation.isPending) ? 'Saving...' : (editingVehicle ? 'Update Vehicle' : 'Save Vehicle')}
             </button>
           </div>
         </form>

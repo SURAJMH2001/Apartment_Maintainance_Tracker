@@ -85,7 +85,11 @@ export default function Alerts() {
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">{alert.resident || '-'}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">{formatDate(alert.created_at)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap"><Badge variant={alert.status === 'active' ? 'warning' : 'success'}>{alert.status}</Badge></td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <Badge variant={alert.status === 'active' ? 'warning' : 'success'}>
+                      {alert.status ? alert.status.charAt(0).toUpperCase() + alert.status.slice(1).toLowerCase() : ''}
+                    </Badge>
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
                     {alert.status === 'active' && (
                       <button onClick={() => resolveMut.mutate(alert.id)} className="text-indigo-600 hover:text-indigo-900 font-medium">Resolve</button>

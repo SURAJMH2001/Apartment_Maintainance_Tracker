@@ -10,6 +10,8 @@ import { feedbackApi } from '../api/feedback';
 import toast from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
 
+import MonthNavigator, { getMonthDisplay } from '../components/ui/MonthNavigator';
+
 export default function Feedback() {
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
@@ -21,12 +23,13 @@ export default function Feedback() {
   const [ratingFilter, setRatingFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
-  // Calendar / Month Selection - default to current month or All Time
+  // Calendar / Month Selection
   const getCurrentMonth = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   };
-  const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' | '2026-11' | '2026-10' etc.
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
+  const [isAllTime, setIsAllTime] = useState(false);
 
   const [formData, setFormData] = useState({
     name: user?.display_name || user?.username || '',
@@ -102,7 +105,7 @@ export default function Feedback() {
 
   // Filter feedback items based on selected period
   const periodFilteredFeedback = feedback.filter((item) => {
-    if (selectedMonth === 'all') return true;
+    if (isAllTime) return true;
     const itemMonth = (item.created_at || item.date || '').slice(0, 7);
     return itemMonth === selectedMonth;
   });
@@ -129,11 +132,9 @@ export default function Feedback() {
     return matchesSearch && matchesRating && matchesCategory;
   });
 
-  const formatMonthLabel = (mStr) => {
-    if (!mStr || mStr === 'all') return 'All Time';
-    const [year, month] = mStr.split('-');
-    const date = new Date(parseInt(year), parseInt(month) - 1, 1);
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const formatPeriodLabel = () => {
+    if (isAllTime) return 'All Time';
+    return getMonthDisplay(selectedMonth);
   };
 
   const StarRating = ({ rating }) => (
@@ -162,53 +163,22 @@ export default function Feedback() {
           </p>
         </div>
 
-        {/* Calendar / Month Picker Filter Pills */}
-        <div className="flex items-center flex-wrap gap-2 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60">
-          <button
-            onClick={() => setSelectedMonth('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              selectedMonth === 'all'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-            }`}
-          >
-            All Time
-          </button>
-
-          {availableMonths.slice(0, 4).map((m) => (
-            <button
-              key={m}
-              onClick={() => setSelectedMonth(m)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                selectedMonth === m
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-              }`}
-            >
-              {formatMonthLabel(m)}
-            </button>
-          ))}
-
-          {/* Custom Month Picker */}
-          <div className="flex items-center gap-1 pl-1 border-l border-slate-200">
-            <Calendar className="w-3.5 h-3.5 text-slate-400 ml-1" />
-            <input
-              type="month"
-              value={selectedMonth === 'all' ? '' : selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value || 'all')}
-              className="text-xs font-medium text-slate-700 bg-transparent border-0 focus:ring-0 py-1 cursor-pointer"
-            />
-          </div>
-        </div>
+        {/* Month Navigator with All Time Toggle */}
+        <MonthNavigator
+          month={selectedMonth}
+          onChangeMonth={setSelectedMonth}
+          isAllTime={isAllTime}
+          onToggleAllTime={setIsAllTime}
+        />
       </div>
 
       {/* Metric Cards - Recalculated for Selected Month */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<MessageSquare className="w-5 h-5 text-indigo-600" />}
-          title={`Total Reviews (${formatMonthLabel(selectedMonth)})`}
+          title={`Total Reviews (${formatPeriodLabel()})`}
           value={stats.totalFeedback}
-          change={selectedMonth === 'all' ? 'All historical reviews' : `Specific to ${formatMonthLabel(selectedMonth)}`}
+          change={isAllTime ? 'All historical reviews' : `Specific to ${formatPeriodLabel()}`}
         />
         <StatCard
           icon={<Star className="w-5 h-5 text-amber-500 fill-amber-500" />}
@@ -225,7 +195,7 @@ export default function Feedback() {
         <StatCard
           icon={<Calendar className="w-5 h-5 text-purple-600" />}
           title="Period Filter"
-          value={formatMonthLabel(selectedMonth)}
+          value={formatPeriodLabel()}
           change={`${periodFilteredFeedback.length} logs in period`}
         />
       </div>

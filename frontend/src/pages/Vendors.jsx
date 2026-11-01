@@ -43,62 +43,11 @@ export default function Vendors() {
       try {
         const res = await vendorsApi.getAll();
         const list = Array.isArray(res.data) ? res.data : (res.data?.vendors || []);
-        if (Array.isArray(list) && list.length > 0) return list;
+        return Array.isArray(list) ? list : [];
       } catch (err) {
-        console.warn('Vendors fetch failed, using defaults:', err);
+        console.warn('Vendors fetch failed:', err);
+        return [];
       }
-      return [
-        {
-          id: 1,
-          name: 'Otis Elevator Services',
-          category: 'Elevator & AMC',
-          contact: 'Rajesh K. (Service Head)',
-          phone: '+91 9845011223',
-          email: 'support.blr@otis.com',
-          service: 'Lift AMC & Monthly Breakdowns',
-          is_active: true
-        },
-        {
-          id: 2,
-          name: 'BESCOM Licensed Electricals',
-          category: 'Electrical',
-          contact: 'Venkatesh Rao',
-          phone: '+91 9845022334',
-          email: 'venkat.electric@gmail.com',
-          service: 'Transformer, DG Set & Meter Room',
-          is_active: true
-        },
-        {
-          id: 3,
-          name: 'AquaPure Tank Cleaners',
-          category: 'Plumbing & Water',
-          contact: 'Senthil Nathan',
-          phone: '+91 9845033445',
-          email: 'clean@aquapure.in',
-          service: 'Overhead & Sump Deep Cleaning',
-          is_active: true
-        },
-        {
-          id: 4,
-          name: 'Sri Manjunatha Security Force',
-          category: 'Security & CCTV',
-          contact: 'Capt. Prabhakar',
-          phone: '+91 9845044556',
-          email: 'security@manjunatha.com',
-          service: '24/7 Gate Guarding & CCTV AMC',
-          is_active: true
-        },
-        {
-          id: 5,
-          name: 'CleanPro Facility Staffing',
-          category: 'Housekeeping & Cleaning',
-          contact: 'Meera Bai',
-          phone: '+91 9845055667',
-          email: 'ops@cleanpro.com',
-          service: 'Common corridors & waste management',
-          is_active: true
-        }
-      ];
     },
   });
 

@@ -61,3 +61,5 @@ Thumbs.db
 .system_generated/
 task.md
 implementation_plan.md
+
+*.db

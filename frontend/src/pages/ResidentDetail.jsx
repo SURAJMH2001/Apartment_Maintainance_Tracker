@@ -160,10 +160,6 @@ export default function ResidentDetail() {
         >
           <ArrowLeft size={16} className="mr-1.5" /> Back to Residents Directory
         </button>
-
-        <span className="text-xs font-mono font-bold px-2.5 py-1 bg-slate-100 rounded-lg text-slate-700">
-          ID #{id}
-        </span>
       </div>
 
       {/* Main Profile Header Card */}
@@ -305,7 +301,7 @@ export default function ResidentDetail() {
         </div>
 
         {/* Financial Dues Summary Card */}
-        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-2xl shadow-xl text-white space-y-4">
+        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-2xl shadow-xl text-white space-y-4 selection:bg-indigo-500 selection:text-white">
           <div className="flex items-center gap-2 border-b border-white/10 pb-3">
             <CreditCard className="w-5 h-5 text-indigo-400" />
             <h2 className="text-base font-bold">Maintenance Dues Status</h2>

@@ -7,75 +7,56 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   PieChart, Pie, Cell 
 } from 'recharts';
-import { FileText, Printer, TrendingUp, Users, PieChart as PieIcon } from 'lucide-react';
+import { FileText, Printer, TrendingUp, Users, PieChart as PieIcon, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 export default function Reports() {
   const [tab, setTab] = useState('monthly');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [isAllTime, setIsAllTime] = useState(false);
   const STALE_TIME = 5 * 60 * 1000;
 
   const { data: monthlyData = [], isLoading: isLoadingMonthly } = useQuery({
-    queryKey: ['reports-monthly'],
+    queryKey: ['reports-monthly', isAllTime ? 'all' : selectedYear],
     queryFn: async () => {
       try {
-        const res = await reportsApi.getMonthlySummary();
+        const params = isAllTime ? {} : { year: selectedYear };
+        const res = await reportsApi.getMonthlySummary(params);
         if (Array.isArray(res.data) && res.data.length > 0) return res.data;
       } catch (err) {
         console.warn('Reports monthly fetch fallback:', err);
       }
-      return [
-        { month: 'Apr 2026', income: 68750, expense: 42000, net: 26750 },
-        { month: 'May 2026', income: 68750, expense: 48500, net: 20250 },
-        { month: 'Jun 2026', income: 68750, expense: 39000, net: 29750 },
-        { month: 'Jul 2026', income: 68750, expense: 45000, net: 23750 },
-        { month: 'Aug 2026', income: 68750, expense: 51200, net: 17550 },
-        { month: 'Sep 2026', income: 68750, expense: 38400, net: 30350 },
-        { month: 'Oct 2026', income: 68750, expense: 41000, net: 27750 },
-      ];
+      return [];
     },
     staleTime: STALE_TIME,
   });
 
   const { data: residentData = [], isLoading: isLoadingResident } = useQuery({
-    queryKey: ['reports-resident'],
+    queryKey: ['reports-resident', isAllTime ? 'all' : selectedYear],
     queryFn: async () => {
       try {
-        if (reportsApi.getResidentCollection) {
-          const res = await reportsApi.getResidentCollection();
-          if (Array.isArray(res.data) && res.data.length > 0) return res.data;
-        }
+        const params = isAllTime ? {} : { year: selectedYear };
+        const res = await reportsApi.getResidentCollection(params);
+        if (Array.isArray(res.data) && res.data.length > 0) return res.data;
       } catch (err) {
         console.warn('Reports resident fetch fallback:', err);
       }
-      return [
-        { id: 1, name: 'S. K. Sharma', unit: 'NNG-101', totalDue: 19250, totalPaid: 19250, balance: 0 },
-        { id: 2, name: 'R. Venkatesh', unit: 'NNG-102', totalDue: 19250, totalPaid: 19250, balance: 0 },
-        { id: 3, name: 'Ananya Deshmukh', unit: 'NNG-103', totalDue: 19250, totalPaid: 16500, balance: 2750 },
-        { id: 4, name: 'M. K. Swamy', unit: 'NB-101', totalDue: 19250, totalPaid: 19250, balance: 0 },
-        { id: 5, name: 'Praveen Nair', unit: 'NB-102', totalDue: 19250, totalPaid: 13750, balance: 5500 },
-      ];
+      return [];
     },
     staleTime: STALE_TIME,
     enabled: tab === 'resident',
   });
 
   const { data: expenseData = [], isLoading: isLoadingExpense } = useQuery({
-    queryKey: ['reports-expense'],
+    queryKey: ['reports-expense', isAllTime ? 'all' : selectedYear],
     queryFn: async () => {
       try {
-        if (reportsApi.getExpenseBreakdown) {
-          const res = await reportsApi.getExpenseBreakdown();
-          if (Array.isArray(res.data) && res.data.length > 0) return res.data;
-        }
+        const params = isAllTime ? {} : { year: selectedYear };
+        const res = await reportsApi.getExpenseBreakdown(params);
+        if (Array.isArray(res.data) && res.data.length > 0) return res.data;
       } catch (err) {
         console.warn('Reports expense fetch fallback:', err);
       }
-      return [
-        { name: 'Lift Maintenance AMC', value: 48000 },
-        { name: 'Common Electricity', value: 72000 },
-        { name: 'Water Tank & Supply', value: 36000 },
-        { name: 'Housekeeping & Security', value: 95000 },
-        { name: 'General Repairs & Plumbing', value: 24500 },
-      ];
+      return [];
     },
     staleTime: STALE_TIME,
     enabled: tab === 'expense',
@@ -99,13 +80,63 @@ export default function Reports() {
             Comprehensive audit reports, monthly cashflow, resident dues, and category breakdowns.
           </p>
         </div>
-        <button
-          onClick={handleExport}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-xl text-sm font-semibold hover:bg-slate-50 shadow-sm transition-all"
-        >
-          <Printer className="w-4 h-4 text-slate-500" />
-          Print / Export PDF
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Year Navigator + All Time */}
+          <div className="flex items-center gap-2">
+            <div className={`flex items-center bg-white border rounded-xl p-1 shadow-xs transition-colors ${
+              !isAllTime ? 'border-indigo-300 ring-2 ring-indigo-50' : 'border-slate-200 opacity-80'
+            }`}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAllTime(false);
+                  setSelectedYear(prev => prev - 1);
+                }}
+                className="p-1 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Previous Year"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-1.5 px-3">
+                <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
+                <span className="text-xs sm:text-sm font-bold text-slate-800">
+                  {selectedYear}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAllTime(false);
+                  setSelectedYear(prev => prev + 1);
+                }}
+                className="p-1 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Next Year"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsAllTime(!isAllTime)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer ${
+                isAllTime
+                  ? 'bg-indigo-600 text-white shadow-indigo-200'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              All Time
+            </button>
+          </div>
+
+          <button
+            onClick={handleExport}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-xl text-sm font-semibold hover:bg-slate-50 shadow-sm transition-all"
+          >
+            <Printer className="w-4 h-4 text-slate-500" />
+            Print / Export PDF
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}

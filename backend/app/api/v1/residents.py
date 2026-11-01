@@ -82,6 +82,8 @@ def update_resident(id: int, resident_in: ResidentUpdate, db: Session = Depends(
     return resident
 
 @router.patch("/{id}/status", response_model=ResidentResponse)
+@router.put("/{id}/toggle-status", response_model=ResidentResponse)
+@router.put("/{id}/status", response_model=ResidentResponse)
 def toggle_resident_status(id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     resident = resident_repo.get(db, id)
     if not resident:

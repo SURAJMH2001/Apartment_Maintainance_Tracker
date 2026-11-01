@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
+import MonthNavigator from '../components/ui/MonthNavigator';
 import { tasksApi } from '../api/maintenance';
 import { toast } from 'react-hot-toast';
 import { formatDate } from '../utils/formatters';
@@ -22,6 +23,8 @@ export default function Tasks() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [isAllTime, setIsAllTime] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -101,7 +104,12 @@ export default function Tasks() {
 
     const matchesSearch = title.includes(q) || location.includes(q) || assignee.includes(q);
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    let matchesMonth = true;
+    if (!isAllTime) {
+      const taskDate = (task.due_date || task.created_at || '').slice(0, 7);
+      matchesMonth = taskDate === selectedMonth;
+    }
+    return matchesSearch && matchesStatus && matchesMonth;
   });
 
   const getStatusColor = (status) => {
@@ -143,13 +151,21 @@ export default function Tasks() {
             Track and manage preventive maintenance, vendor work orders, and scheduled repairs.
           </p>
         </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-sm w-full sm:w-auto"
-        >
-          <Plus className="w-5 h-5" />
-          Create Task
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <MonthNavigator
+            month={selectedMonth}
+            onChangeMonth={setSelectedMonth}
+            isAllTime={isAllTime}
+            onToggleAllTime={setIsAllTime}
+          />
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-sm w-full sm:w-auto"
+          >
+            <Plus className="w-5 h-5" />
+            Create Task
+          </button>
+        </div>
       </div>
 
       {/* Filter / Search Bar */}

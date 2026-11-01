@@ -99,14 +99,63 @@ export default function Settings() {
             Configure the society display name, official registration, billing cycles, and contacts in one central place.
           </p>
         </div>
-        {isAdmin && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Persistent Database Backed
-          </span>
-        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Maintenance Due Date Configuration Card */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-5">
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+            <Sliders className="w-5 h-5 text-indigo-600" />
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Maintenance Due Date &amp; Billing Rules</h2>
+              <p className="text-xs text-slate-500">Configure the calendar due date for monthly maintenance collections</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Maintenance Due Date (Day of Every Month) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="1"
+                  max="28"
+                  required
+                  name="due_date_day"
+                  value={form.due_date_day ?? 5}
+                  onChange={handleChange}
+                  disabled={!isAdmin}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-mono"
+                />
+              </div>
+              <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                e.g. Setting <strong>5</strong> sets the due date to the <strong>5th of every month</strong> (e.g. 5 Nov 2026), and setting <strong>10</strong> sets it to the <strong>10th of every month</strong>. All newly generated monthly maintenance bills will automatically use this date.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Default Monthly Maintenance Amount (₹)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="50"
+                name="default_maintenance_amount"
+                value={form.default_maintenance_amount ?? 2750}
+                onChange={handleChange}
+                disabled={!isAdmin}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-mono"
+              />
+              <p className="text-xs text-slate-500 mt-1.5">
+                Standard society maintenance charge per flat per billing cycle (default: ₹2,750).
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Society Profile Card */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-5">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">

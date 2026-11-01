@@ -169,6 +169,31 @@ def create_transaction(
     transaction = transaction_repo.create(db, data)
     AuditService.log_action(db, current_user.id, current_user.username, "CREATE", "Transaction", transaction.id, new_values=data)
 
+    # Two-way sync: if this is an income transaction for maintenance or a resident, auto-update the Payment ledger
+    if transaction.transaction_type == "income":
+        target_payment = None
+        if transaction.payment_id:
+            target_payment = db.query(Payment).filter(Payment.id == transaction.payment_id).first()
+        elif transaction.resident_id:
+            match = re.search(r'\b(20\d{2}-\d{2})\b', transaction.description or '')
+            tx_month = match.group(1) if match else (transaction.transaction_date.strftime("%Y-%m") if transaction.transaction_date else None)
+            if tx_month:
+                target_payment = db.query(Payment).filter(
+                    Payment.resident_id == transaction.resident_id,
+                    Payment.month == tx_month
+                ).first()
+        
+        if target_payment:
+            transaction.payment_id = target_payment.id
+            new_paid = float(target_payment.paid_amount or 0.0) + float(transaction.amount)
+            target_payment.paid_amount = round(new_paid, 2)
+            target_payment.paid_date = transaction.transaction_date
+            if target_payment.paid_amount >= float(target_payment.due_amount or 0.0):
+                target_payment.status = "paid"
+            elif target_payment.paid_amount > 0:
+                target_payment.status = "partial"
+            db.commit()
+
     res_name = None
     unit_str = None
     if transaction.resident_id:
@@ -282,7 +307,7 @@ def delete_transaction(id: int, db: Session = Depends(get_db), current_user = De
 
     # 1. Revert payment status if this transaction is linked to a payment
     payment_id = transaction.payment_id
-    if not payment_id and transaction.resident_id and transaction.transaction_type == "income" and transaction.category == "maintenance":
+    if not payment_id and transaction.resident_id and transaction.transaction_type == "income" and (transaction.category or "").lower() == "maintenance":
         # Match payment by resident_id and month in description (e.g. "Maintenance 2026-03 - ...")
         desc = transaction.description or ""
         match = re.search(r"Maintenance\s+(\d{4}-\d{2})", desc)

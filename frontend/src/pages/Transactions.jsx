@@ -147,6 +147,9 @@ export default function Transactions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['transactions-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['reports-monthly'] });
       toast.success('Passbook entry recorded successfully!');
       setIsModalOpen(false);
       setFormData({
@@ -216,8 +219,11 @@ export default function Transactions() {
   };
 
   const availableBalance = summaryData?.available_balance ?? periodTotals.net;
-  const totalIncome = summaryData?.total_income ?? periodTotals.credits;
-  const totalExpense = summaryData?.total_expense ?? periodTotals.debits;
+  const periodLabel = isAllTime ? 'All Time' : getMonthDisplay(selectedMonth);
+  const displayIncome = isAllTime ? (summaryData?.total_income ?? periodTotals.credits) : periodTotals.credits;
+  const displayExpense = isAllTime ? (summaryData?.total_expense ?? periodTotals.debits) : periodTotals.debits;
+  const displayNet = isAllTime ? availableBalance : periodTotals.net;
+  const displayEntryCount = isAllTime ? txs.length : filteredTxs.length;
 
   return (
     <div className="space-y-6">
@@ -256,39 +262,42 @@ export default function Transactions() {
         {/* Card 1: Available Bank Balance */}
         <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-purple-950 p-5 rounded-2xl shadow-xl text-white border border-indigo-500/20 relative overflow-hidden">
           <div className="flex items-center justify-between text-indigo-200 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Net Bank Balance</span>
+            <span className="text-xs font-bold uppercase tracking-wider">
+              {isAllTime ? 'Net Bank Balance' : `${periodLabel} Net Cashflow`}
+            </span>
             <Landmark className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold tracking-tight font-mono text-emerald-400">
-            {formatCurrency(availableBalance)}
+          <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight font-mono ${displayNet >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {formatCurrency(displayNet)}
           </div>
           <p className="text-[11px] text-slate-300 mt-1 flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Live cumulative ledger
+            <CheckCircle2 className="w-3 h-3 text-emerald-400" /> 
+            {isAllTime ? 'Live cumulative ledger' : `Bank Balance: ${formatCurrency(availableBalance)}`}
           </p>
         </div>
 
         {/* Card 2: Total Deposits (Cr.) */}
         <StatCard
           icon={<ArrowDownLeft className="w-5 h-5 text-emerald-600" />}
-          title="Total Deposits (Cr.)"
-          value={formatCurrency(totalIncome)}
-          change="Inflow collections & dues"
+          title={isAllTime ? "Total Deposits (Cr.)" : `${periodLabel} Inflow (Cr.)`}
+          value={formatCurrency(displayIncome)}
+          change={isAllTime ? "Inflow collections & dues" : `Collections for ${periodLabel}`}
         />
 
         {/* Card 3: Total Withdrawals (Dr.) */}
         <StatCard
           icon={<ArrowUpRight className="w-5 h-5 text-rose-600" />}
-          title="Total Withdrawals (Dr.)"
-          value={formatCurrency(totalExpense)}
-          change="Expenses, AMC & vendor payouts"
+          title={isAllTime ? "Total Withdrawals (Dr.)" : `${periodLabel} Payouts (Dr.)`}
+          value={formatCurrency(displayExpense)}
+          change={isAllTime ? "Expenses, AMC & vendor payouts" : `Expenses paid in ${periodLabel}`}
         />
 
         {/* Card 4: Ledger Entries */}
         <StatCard
           icon={<Receipt className="w-5 h-5 text-indigo-600" />}
-          title="Total Passbook Entries"
-          value={txs.length}
-          change={`Showing ${filteredTxs.length} matching`}
+          title={isAllTime ? "Total Passbook Entries" : `${periodLabel} Entries`}
+          value={displayEntryCount}
+          change={isAllTime ? `Showing ${filteredTxs.length} matching` : `${filteredTxs.length} entries for ${periodLabel}`}
         />
       </div>
 

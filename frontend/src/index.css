@@ -33,7 +33,12 @@
   }
   
   input, select, textarea {
-    @apply focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent;
+    @apply focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 bg-white;
+  }
+
+  select, select option {
+    color: #0f172a !important;
+    background-color: #ffffff !important;
   }
 
 

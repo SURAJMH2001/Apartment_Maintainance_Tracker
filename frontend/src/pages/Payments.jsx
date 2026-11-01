@@ -262,6 +262,19 @@ export default function Payments() {
     return getFlatResidents(payModal.payment);
   }, [payModal.payment, getFlatResidents]);
 
+  // Auto-sync payer resident ID in payment modal when opened or flat residents load
+  useEffect(() => {
+    if (payModal.open && payModalFlatResidents.length > 0) {
+      const match = payModalFlatResidents.find(r => String(r.id) === String(payModal.payerResidentId));
+      if (!match) {
+        setPayModal(prev => ({
+          ...prev,
+          payerResidentId: String(payModalFlatResidents[0].id)
+        }));
+      }
+    }
+  }, [payModal.open, payModalFlatResidents]);
+
   // Transactions query for current selected month
   const { data: monthTransactions = [] } = useQuery({
     queryKey: ['transactions', month],
@@ -1287,18 +1300,22 @@ export default function Payments() {
                                 <div className="flex items-center justify-center gap-1.5">
                                   {!isPaid ? (
                                     <button
-                                      onClick={() => setPayModal({
-                                        open: true,
-                                        payment: p,
-                                        payerResidentId: p.resident_id || '',
-                                        paidAmount: p.due_amount || '',
-                                        paidDate: new Date().toISOString().slice(0, 10),
-                                        paymentMethod: p.payment_method || 'UPI',
-                                        roleFilter: 'all',
-                                        notes: '',
-                                        alreadyBilled: false,
-                                        isEdit: false
-                                      })}
+                                      onClick={() => {
+                                        const flatRes = getFlatResidents(p);
+                                        const defaultResId = p.resident_id ? String(p.resident_id) : (flatRes.length > 0 ? String(flatRes[0].id) : '');
+                                        setPayModal({
+                                          open: true,
+                                          payment: p,
+                                          payerResidentId: defaultResId,
+                                          paidAmount: p.due_amount || '',
+                                          paidDate: new Date().toISOString().slice(0, 10),
+                                          paymentMethod: p.payment_method || 'UPI',
+                                          roleFilter: 'all',
+                                          notes: '',
+                                          alreadyBilled: false,
+                                          isEdit: false
+                                        });
+                                      }}
                                       className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold shadow-xs cursor-pointer"
                                     >
                                       Pay / Settle
@@ -1306,18 +1323,22 @@ export default function Payments() {
                                   ) : (
                                     <div className="flex items-center gap-1">
                                       <button
-                                        onClick={() => setPayModal({
-                                          open: true,
-                                          payment: p,
-                                          payerResidentId: p.resident_id || '',
-                                          paidAmount: p.paid_amount || p.due_amount || '',
-                                          paidDate: p.paid_date ? String(p.paid_date).slice(0, 10) : new Date().toISOString().slice(0, 10),
-                                          paymentMethod: p.payment_method || 'UPI',
-                                          roleFilter: 'all',
-                                          notes: p.notes || '',
-                                          alreadyBilled: false,
-                                          isEdit: true
-                                        })}
+                                        onClick={() => {
+                                          const flatRes = getFlatResidents(p);
+                                          const defaultResId = p.resident_id ? String(p.resident_id) : (flatRes.length > 0 ? String(flatRes[0].id) : '');
+                                          setPayModal({
+                                            open: true,
+                                            payment: p,
+                                            payerResidentId: defaultResId,
+                                            paidAmount: p.paid_amount || p.due_amount || '',
+                                            paidDate: p.paid_date ? String(p.paid_date).slice(0, 10) : new Date().toISOString().slice(0, 10),
+                                            paymentMethod: p.payment_method || 'UPI',
+                                            roleFilter: 'all',
+                                            notes: p.notes || '',
+                                            alreadyBilled: false,
+                                            isEdit: true
+                                          });
+                                        }}
                                         className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-[11px] font-bold border border-indigo-200 cursor-pointer flex items-center gap-1"
                                         title="Edit payment amount / date / notes"
                                       >
@@ -2267,12 +2288,15 @@ export default function Payments() {
                 )}
               </div>
               <select
-                value={payModal.payerResidentId}
+                value={String(payModal.payerResidentId || '')}
                 onChange={e => setPayModal({ ...payModal, payerResidentId: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full px-3 py-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none cursor-pointer"
               >
+                {payModalFlatResidents.length === 0 && (
+                  <option value="">-- No resident profile linked to flat --</option>
+                )}
                 {(payModalFlatResidents.length > 0 ? payModalFlatResidents : residents).map(r => (
-                  <option key={r.id} value={r.id}>
+                  <option key={r.id} value={String(r.id)} className="text-slate-900 bg-white py-1">
                     {r.owner_name} {r.ownership_type ? `(${r.ownership_type.toUpperCase()})` : ''} {r.owner_phone ? `• ${r.owner_phone}` : ''}
                   </option>
                 ))}
@@ -2291,7 +2315,7 @@ export default function Payments() {
               required
               value={payModal.paidAmount}
               onChange={e => setPayModal({ ...payModal, paidAmount: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
           </div>
 
@@ -2302,12 +2326,13 @@ export default function Payments() {
             <select
               value={payModal.paymentMethod || 'UPI'}
               onChange={e => setPayModal({ ...payModal, paymentMethod: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full px-3 py-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none cursor-pointer"
             >
               <option value="UPI">UPI (Google Pay, PhonePe, Paytm)</option>
               <option value="Bank Transfer">Bank Transfer / NEFT / IMPS</option>
-              <option value="Cheque">Cheque</option>
               <option value="Cash">Cash</option>
+              <option value="Cheque">Cheque</option>
+              <option value="Other">Other</option>
             </select>
           </div>
 
@@ -2386,13 +2411,13 @@ export default function Payments() {
               )}
             </div>
             <select
-              value={editResidentModal.residentId}
+              value={String(editResidentModal.residentId || '')}
               onChange={e => setEditResidentModal({ ...editResidentModal, residentId: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full px-3 py-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
             >
               <option value="">-- Choose Resident of Flat {editResidentModal.payment?.unit_number || editResidentModal.payment?.unit} --</option>
               {(showAllResidentsInModal || editModalFlatResidents.length === 0 ? residents : editModalFlatResidents).map(r => (
-                <option key={r.id} value={r.id}>
+                <option key={r.id} value={String(r.id)} className="text-slate-900 bg-white py-1">
                   {r.owner_name} {r.ownership_type ? `(${r.ownership_type.toUpperCase()})` : ''} {r.owner_phone ? `• ${r.owner_phone}` : ''}
                 </option>
               ))}

@@ -305,19 +305,33 @@ def generate_monthly_payments(
     eff_month = (payload.month if payload and payload.month else None) or month or datetime.now(timezone.utc).strftime("%Y-%m")
     
     # Resolve due_amount
-    eff_amount = 2750.0
+    eff_amount = None
     if payload and payload.due_amount is not None:
         eff_amount = float(payload.due_amount)
     elif due_amount is not None:
         eff_amount = float(due_amount)
+    else:
+        try:
+            from app.api.v1.settings import _get_all_settings_dict
+            settings_dict = _get_all_settings_dict(db)
+            eff_amount = float(settings_dict.get("default_maintenance_amount") or 2750.0)
+        except Exception:
+            eff_amount = 2750.0
+    if eff_amount is None:
+        eff_amount = 2750.0
 
-    # Resolve due_date
+    # Resolve due_date from Settings due_date_day
     eff_due_date = (payload.due_date if payload and payload.due_date else None) or due_date
     if not eff_due_date:
         try:
-            # Default to the 10th of the target month
+            from app.api.v1.settings import _get_all_settings_dict
+            import calendar
+            settings_dict = _get_all_settings_dict(db)
+            due_day = int(settings_dict.get("due_date_day") or 5)
             parts = eff_month.split("-")
-            eff_due_date = date(int(parts[0]), int(parts[1]), 10)
+            year_int, month_int = int(parts[0]), int(parts[1])
+            max_day = calendar.monthrange(year_int, month_int)[1]
+            eff_due_date = date(year_int, month_int, min(due_day, max_day))
         except Exception:
             eff_due_date = datetime.now(timezone.utc).date()
 
@@ -557,4 +571,36 @@ def send_payment_reminder_all_unpaid(
         "emails_dispatched": emails_dispatched,
         "notified_units": notified_units
     }
+
+@router.delete("/{id}")
+def delete_payment(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_admin)
+):
+    """Delete a payment bill record and auto-sync by deleting associated transactions in the passbook."""
+    payment = db.query(Payment).filter(Payment.id == id).first()
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment record not found")
+    
+    # Auto-sync: delete all linked transactions to keep passbook and payment ledger in complete sync
+    associated_txs = db.query(Transaction).filter(
+        (Transaction.payment_id == payment.id) |
+        ((Transaction.resident_id == payment.resident_id) & 
+         (Transaction.description.like(f"Maintenance {payment.month}%")) & 
+         (Transaction.transaction_type == "income"))
+    ).all()
+    deleted_tx_count = len(associated_txs)
+    for tx in associated_txs:
+        db.delete(tx)
+        
+    db.delete(payment)
+    db.commit()
+    
+    AuditService.log_action(
+        db, current_user.id, current_user.username, "DELETE", "Payment", str(id),
+        new_values={"deleted_transactions": deleted_tx_count}
+    )
+    return {"message": "Payment record deleted and transactions synchronized"}
+
 

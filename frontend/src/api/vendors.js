@@ -6,3 +6,4 @@ export const vendorsApi = {
   update: (id, data) => api.put(`/api/v1/vendors/${id}`, data),
   delete: (id) => api.delete(`/api/v1/vendors/${id}`),
 };
+

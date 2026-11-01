@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Star, MessageSquare, ThumbsUp, Calendar, Clock, 
-  Send, Search, Sparkles, Filter 
+  Send, Search, Sparkles, Filter, Trash2, CheckCircle2 
 } from 'lucide-react';
 import { StatCard } from '../components/ui';
 import Spinner from '../components/ui/Spinner';
@@ -14,8 +14,20 @@ export default function Feedback() {
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
 
+  const rawRole = (user?.role || 'viewer').toLowerCase().trim().replace(/_/g, '-').replace(/\s+/g, '-');
+  const isAdmin = rawRole === 'admin' || rawRole === 'super-admin' || rawRole === 'superadmin' || rawRole === 'manager';
+
   const [searchTerm, setSearchTerm] = useState('');
   const [ratingFilter, setRatingFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+
+  // Calendar / Month Selection - default to current month or All Time
+  const getCurrentMonth = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+  const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' | '2026-11' | '2026-10' etc.
+
   const [formData, setFormData] = useState({
     name: user?.display_name || user?.username || '',
     email: user?.email || '',
@@ -26,56 +38,26 @@ export default function Feedback() {
     category: 'service',
   });
 
-  const { data: feedback = [], isLoading } = useQuery({
+  const { data: rawFeedback = [], isLoading } = useQuery({
     queryKey: ['feedback'],
     queryFn: async () => {
       try {
         const res = await feedbackApi.getAll();
-        if (Array.isArray(res.data) && res.data.length > 0) {
-          return res.data;
-        }
+        const list = Array.isArray(res.data) ? res.data : (res.data?.feedbacks || []);
+        return Array.isArray(list) ? list : [];
       } catch (err) {
-        console.warn('Backend feedback fetch failed, using default reviews:', err);
+        console.warn('Backend feedback fetch failed:', err);
+        return [];
       }
-      return [
-        {
-          id: 1,
-          name: 'Rajesh Sharma',
-          unit: 'NNG-201',
-          subject: 'Excellent Lift Maintenance & Timely Upkeep',
-          message: 'The regular servicing of the elevator in Block A was done very smoothly this month. Appreciate the association committee!',
-          rating: 5,
-          category: 'maintenance',
-          created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: 2,
-          name: 'Priya Narayanan',
-          unit: 'NB-104',
-          subject: 'Clean Clubhouse and Garden Pathways',
-          message: 'The housekeeping staff has been doing a fantastic job keeping common pathways and garden areas clean.',
-          rating: 5,
-          category: 'amenity',
-          created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: 3,
-          name: 'Karthik Rao',
-          unit: 'NNG-302',
-          subject: 'Quick Water Pump Fix',
-          message: 'Water pump issue resolved within 2 hours of posting on the portal. Great transparency.',
-          rating: 4,
-          category: 'service',
-          created_at: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString()
-        }
-      ];
     },
   });
+
+  const feedback = Array.isArray(rawFeedback) ? rawFeedback : [];
 
   const submitMutation = useMutation({
     mutationFn: (data) => feedbackApi.create(data),
     onSuccess: () => {
-      toast.success('Thank you! Your feedback has been submitted.');
+      toast.success('Thank you! Your feedback has been recorded in the database.');
       queryClient.invalidateQueries({ queryKey: ['feedback'] });
       setFormData({
         name: user?.display_name || user?.username || '',
@@ -92,26 +74,67 @@ export default function Feedback() {
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id) => feedbackApi.delete(id),
+    onSuccess: () => {
+      toast.success('Feedback deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['feedback'] });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.detail || 'Failed to delete feedback');
+    }
+  });
+
+  // Extract available months from existing feedbacks
+  const availableMonths = Array.from(new Set(
+    feedback.map(f => {
+      const dt = f.created_at || f.date;
+      if (!dt) return null;
+      return dt.slice(0, 7);
+    }).filter(Boolean)
+  )).sort().reverse();
+
+  // If current month isn't in list, add it
+  const currentMonthStr = getCurrentMonth();
+  if (!availableMonths.includes(currentMonthStr)) {
+    availableMonths.unshift(currentMonthStr);
+  }
+
+  // Filter feedback items based on selected period
+  const periodFilteredFeedback = feedback.filter((item) => {
+    if (selectedMonth === 'all') return true;
+    const itemMonth = (item.created_at || item.date || '').slice(0, 7);
+    return itemMonth === selectedMonth;
+  });
+
+  // Compute stats dynamically for the selected period
   const stats = {
-    totalFeedback: feedback?.length || 0,
-    averageRating: feedback?.length
-      ? (feedback.reduce((acc, f) => acc + (Number(f.rating) || 5), 0) / feedback.length).toFixed(1)
+    totalFeedback: periodFilteredFeedback.length,
+    averageRating: periodFilteredFeedback.length
+      ? (periodFilteredFeedback.reduce((acc, f) => acc + (Number(f.rating) || 5), 0) / periodFilteredFeedback.length).toFixed(1)
       : '5.0',
-    positive: feedback?.filter((f) => (Number(f.rating) || 0) >= 4)?.length || 0,
-    thisMonth: feedback?.filter((f) => {
-      const d = new Date(f.created_at || f.date || Date.now());
-      return d.getMonth() === new Date().getMonth();
-    })?.length || 0,
+    positive: periodFilteredFeedback.filter((f) => (Number(f.rating) || 0) >= 4).length,
+    critical: periodFilteredFeedback.filter((f) => (Number(f.rating) || 0) <= 2).length,
   };
 
-  const filteredFeedback = feedback?.filter((item) => {
+  // Search & rating filter applied to period items
+  const displayedFeedback = periodFilteredFeedback.filter((item) => {
     const matchesSearch =
       (item.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.subject || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.message || '').toLowerCase().includes(searchTerm.toLowerCase());
+      (item.message || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.unit || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRating = ratingFilter === 'all' || Number(item.rating) === parseInt(ratingFilter);
-    return matchesSearch && matchesRating;
+    const matchesCategory = categoryFilter === 'all' || (item.category || '').toLowerCase() === categoryFilter.toLowerCase();
+    return matchesSearch && matchesRating && matchesCategory;
   });
+
+  const formatMonthLabel = (mStr) => {
+    if (!mStr || mStr === 'all') return 'All Time';
+    const [year, month] = mStr.split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  };
 
   const StarRating = ({ rating }) => (
     <div className="flex items-center gap-1">
@@ -131,40 +154,79 @@ export default function Feedback() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-            Feedback &amp; Reviews
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <MessageSquare className="w-7 h-7 text-indigo-600" /> Feedback &amp; Reviews
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            Community feedback, resident reviews, and association satisfaction ratings.
+            Resident opinions, amenities reviews, and association satisfaction metrics fetched live from database.
           </p>
+        </div>
+
+        {/* Calendar / Month Picker Filter Pills */}
+        <div className="flex items-center flex-wrap gap-2 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60">
+          <button
+            onClick={() => setSelectedMonth('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              selectedMonth === 'all'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            All Time
+          </button>
+
+          {availableMonths.slice(0, 4).map((m) => (
+            <button
+              key={m}
+              onClick={() => setSelectedMonth(m)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                selectedMonth === m
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+              }`}
+            >
+              {formatMonthLabel(m)}
+            </button>
+          ))}
+
+          {/* Custom Month Picker */}
+          <div className="flex items-center gap-1 pl-1 border-l border-slate-200">
+            <Calendar className="w-3.5 h-3.5 text-slate-400 ml-1" />
+            <input
+              type="month"
+              value={selectedMonth === 'all' ? '' : selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value || 'all')}
+              className="text-xs font-medium text-slate-700 bg-transparent border-0 focus:ring-0 py-1 cursor-pointer"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Metric Cards */}
+      {/* Metric Cards - Recalculated for Selected Month */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<MessageSquare className="w-5 h-5 text-indigo-600" />}
-          title="Total Reviews"
+          title={`Total Reviews (${formatMonthLabel(selectedMonth)})`}
           value={stats.totalFeedback}
-          change="All-time received"
+          change={selectedMonth === 'all' ? 'All historical reviews' : `Specific to ${formatMonthLabel(selectedMonth)}`}
         />
         <StatCard
           icon={<Star className="w-5 h-5 text-amber-500 fill-amber-500" />}
           title="Average Rating"
           value={`${stats.averageRating} / 5`}
-          change={`${stats.positive} high ratings`}
+          change={`${stats.positive} satisfied residents`}
         />
         <StatCard
           icon={<ThumbsUp className="w-5 h-5 text-emerald-600" />}
-          title="Positive Score"
-          value={`${Math.round((stats.positive / (feedback?.length || 1)) * 100)}%`}
-          change="4★ and 5★ reviews"
+          title="Satisfaction Rate"
+          value={`${stats.totalFeedback ? Math.round((stats.positive / stats.totalFeedback) * 100) : 100}%`}
+          change="4★ and 5★ ratings"
         />
         <StatCard
           icon={<Calendar className="w-5 h-5 text-purple-600" />}
-          title="This Month"
-          value={stats.thisMonth}
-          change="Recent feedback"
+          title="Period Filter"
+          value={formatMonthLabel(selectedMonth)}
+          change={`${periodFilteredFeedback.length} logs in period`}
         />
       </div>
 
@@ -180,18 +242,29 @@ export default function Feedback() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Search reviews by name, subject, keyword..."
+                    placeholder="Search reviews by name, unit, subject, keywords..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                   />
                 </div>
-                <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-slate-400 hidden sm:block" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="service">Service</option>
+                    <option value="amenity">Amenity</option>
+                    <option value="security">Security</option>
+                  </select>
+
                   <select
                     value={ratingFilter}
                     onChange={(e) => setRatingFilter(e.target.value)}
-                    className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="all">All Ratings</option>
                     <option value="5">5 Stars</option>
@@ -202,6 +275,18 @@ export default function Feedback() {
                   </select>
                 </div>
               </div>
+
+              {selectedMonth !== 'all' && (
+                <div className="mt-3 flex items-center justify-between text-xs font-semibold text-indigo-700 bg-indigo-50/80 px-3 py-1.5 rounded-lg border border-indigo-100">
+                  <span>Filtered to: <strong>{formatMonthLabel(selectedMonth)}</strong> ({displayedFeedback.length} matching)</span>
+                  <button
+                    onClick={() => setSelectedMonth('all')}
+                    className="text-indigo-600 hover:text-indigo-800 underline ml-2"
+                  >
+                    Reset to All Time
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* List */}
@@ -209,15 +294,15 @@ export default function Feedback() {
               <div className="p-12 flex justify-center">
                 <Spinner />
               </div>
-            ) : filteredFeedback?.length === 0 ? (
+            ) : displayedFeedback.length === 0 ? (
               <div className="p-12 text-center text-slate-400">
                 <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-30 text-indigo-400" />
-                <p className="font-semibold text-slate-600">No matching feedback found</p>
-                <p className="text-xs text-slate-400 mt-1">Try resetting your search query or filter.</p>
+                <p className="font-semibold text-slate-600">No feedback found for {formatMonthLabel(selectedMonth)}</p>
+                <p className="text-xs text-slate-400 mt-1">Try selecting another month or submitting the first review on the right.</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {filteredFeedback.map((item) => (
+                {displayedFeedback.map((item) => (
                   <div key={item.id} className="p-5 sm:p-6 hover:bg-slate-50/70 transition-colors">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
@@ -238,8 +323,21 @@ export default function Feedback() {
                               Category: {item.category || 'General'}
                             </span>
                           </div>
-                          <div className="ml-auto">
+                          <div className="ml-auto flex items-center gap-3">
                             <StarRating rating={Number(item.rating) || 5} />
+                            {(isAdmin || (user?.email && item.email === user.email)) && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Delete this feedback review?')) {
+                                    deleteMutation.mutate(item.id);
+                                  }
+                                }}
+                                title="Delete review"
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -251,8 +349,8 @@ export default function Feedback() {
                         </p>
 
                         <div className="flex items-center gap-4 text-xs text-slate-400">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" />
+                          <span className="flex items-center gap-1 font-medium text-slate-500">
+                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
                             {new Date(item.created_at || item.date || Date.now()).toLocaleDateString('en-IN', {
                               day: 'numeric',
                               month: 'short',

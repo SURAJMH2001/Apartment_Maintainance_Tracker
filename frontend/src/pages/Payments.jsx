@@ -64,8 +64,14 @@ export default function Payments() {
   const isAdmin = rawRole === 'admin' || rawRole === 'super-admin' || rawRole === 'superadmin' || rawRole === 'manager';
   const isViewer = !isAdmin;
 
-  // Month state (YYYY-MM) - defaults to 2026-10 where latest records are present
-  const [month, setMonth] = useState('2026-10');
+  // Month state (YYYY-MM) - dynamically defaults to current calendar month (e.g. 2026-11)
+  const getCurrentMonth = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  };
+  const [month, setMonth] = useState(getCurrentMonth);
   const [statusFilter, setStatusFilter] = useState('all');
   const [genAmount, setGenAmount] = useState(2750);
 

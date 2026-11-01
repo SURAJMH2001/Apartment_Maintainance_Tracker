@@ -31,17 +31,11 @@ export default function Schedule() {
       try {
         const res = await tasksApi.getAll();
         const list = Array.isArray(res.data) ? res.data : (res.data?.tasks || []);
-        if (Array.isArray(list) && list.length > 0) return list;
+        return Array.isArray(list) ? list : [];
       } catch (err) {
-        console.warn('Schedule tasks fallback:', err);
+        console.warn('Schedule tasks fetch error:', err);
+        return [];
       }
-      return [
-        { id: 1, title: 'Elevator Maintenance', due_date: format(new Date(), 'yyyy-MM-dd'), status: 'pending', priority: 'high', category: 'Electrical' },
-        { id: 2, title: 'Pool Cleaning', due_date: format(addDays(new Date(), 2), 'yyyy-MM-dd'), status: 'pending', priority: 'medium', category: 'Maintenance' },
-        { id: 3, title: 'Fire Alarm Test', due_date: format(subDays(new Date(), 5), 'yyyy-MM-dd'), status: 'completed', priority: 'critical', category: 'Safety' },
-        { id: 4, title: 'HVAC Inspection', due_date: format(addDays(new Date(), 7), 'yyyy-MM-dd'), status: 'pending', priority: 'medium', category: 'HVAC' },
-        { id: 5, title: 'Water Tank Disinfection', due_date: format(addDays(new Date(), 4), 'yyyy-MM-dd'), status: 'pending', priority: 'high', category: 'Plumbing' },
-      ];
     }
   });
 

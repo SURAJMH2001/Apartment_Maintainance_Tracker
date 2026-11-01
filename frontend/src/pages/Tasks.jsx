@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Search, Filter, Plus, Clock, CheckCircle, AlertTriangle, 
-  Hammer, Droplets, Zap, Wrench, Calendar, MapPin, User, CheckSquare 
+  Hammer, Droplets, Zap, Wrench, Calendar, MapPin, User, CheckSquare, Trash2 
 } from 'lucide-react';
 import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
@@ -40,18 +40,11 @@ export default function Tasks() {
       try {
         const res = await tasksApi.getAll();
         const list = Array.isArray(res.data) ? res.data : (res.data?.tasks || []);
-        if (Array.isArray(list) && list.length > 0) return list;
+        return Array.isArray(list) ? list : [];
       } catch (err) {
-        console.warn('Tasks API fallback:', err);
+        console.warn('Tasks API fetch error:', err);
+        return [];
       }
-      return [
-        { id: 1, title: 'Elevator Monthly Servicing (Block A & B)', category: 'Electrical', status: 'completed', due_date: '2026-10-25', priority: 'critical', assignee: 'Otis AMC Team', location: 'Building Lift Shafts' },
-        { id: 2, title: 'Overhead Tank Deep Cleaning & Disinfection', category: 'Plumbing', status: 'pending', due_date: '2026-11-05', priority: 'high', assignee: 'AquaPure Cleaners', location: 'Rooftop Water Tanks' },
-        { id: 3, title: 'Common Corridor LED Light Replacement', category: 'Electrical', status: 'completed', due_date: '2026-10-28', priority: 'low', assignee: 'Suresh (Electrician)', location: 'Tower A Floors 1-3' },
-        { id: 4, title: 'Clubhouse Gym AC Filter Servicing', category: 'HVAC', status: 'pending', due_date: '2026-11-10', priority: 'medium', assignee: 'CoolAir Solutions', location: 'Clubhouse Ground Floor' },
-        { id: 5, title: 'Basement Drainage Sump Pump Check', category: 'Plumbing', status: 'overdue', due_date: '2026-10-31', priority: 'high', assignee: 'Plumbing Tech', location: 'Basement Parking Shaft' },
-        { id: 6, title: 'Fire Extinguisher Pressure Inspection', category: 'Safety', status: 'completed', due_date: '2026-10-15', priority: 'critical', assignee: 'Safety First India', location: 'All Floors Corridors' },
-      ];
     }
   });
 
@@ -86,6 +79,17 @@ export default function Tasks() {
     },
     onError: () => {
       toast.error('Failed to update task status');
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => tasksApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success('Task deleted successfully');
+    },
+    onError: () => {
+      toast.error('Failed to delete task');
     }
   });
 
@@ -243,18 +247,29 @@ export default function Tasks() {
                     {task.status !== 'completed' ? (
                       <button
                         onClick={() => updateStatusMutation.mutate({ id: task.id, status: 'completed' })}
-                        className="w-full py-1.5 px-3 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+                        className="flex-1 py-1.5 px-3 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Mark Completed
                       </button>
                     ) : (
                       <button
                         onClick={() => updateStatusMutation.mutate({ id: task.id, status: 'pending' })}
-                        className="w-full py-1.5 px-3 bg-slate-50 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+                        className="flex-1 py-1.5 px-3 bg-slate-50 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1"
                       >
                         Reopen Task
                       </button>
                     )}
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Delete task "${task.title}"?`)) {
+                          deleteMutation.mutate(task.id);
+                        }
+                      }}
+                      title="Delete task"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>

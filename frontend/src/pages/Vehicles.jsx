@@ -22,17 +22,9 @@ import toast from 'react-hot-toast';
 import Modal from '../components/ui/Modal';
 import Badge from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
+import { sortFlats, SOCIETY_FLATS_ORDER } from '../utils/formatters';
 
-const sortFlats = (a, b) => {
-  const valA = typeof a === 'string' ? a : (a?.unit_number || '');
-  const valB = typeof b === 'string' ? b : (b?.unit_number || '');
-  return valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
-};
-
-const DEFAULT_FLATS = [
-  'NNG-SF1', 'NNG-SF2', 'NNG-TF1', 'NNG-TF2',
-  'NB-SF1', 'NB-SF2', 'NB-TF1', 'NB-TF2'
-];
+const DEFAULT_FLATS = SOCIETY_FLATS_ORDER;
 
 export default function Vehicles() {
   const queryClient = useQueryClient();
@@ -566,7 +558,7 @@ export default function Vehicles() {
               onChange={(e) => setFormData({ ...formData, resident_id: e.target.value })}
             >
               <option value="">-- Choose Flat --</option>
-              {(isAdminOrManager ? residents : residents.filter(r => r.unit_number === viewerFlat)).map(r => (
+              {(isAdminOrManager ? [...residents].sort(sortFlats) : residents.filter(r => r.unit_number === viewerFlat)).map(r => (
                 <option key={r.id} value={r.id}>
                   {r.unit_number} - {r.owner_name}
                 </option>

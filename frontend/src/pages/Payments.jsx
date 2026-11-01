@@ -2295,7 +2295,7 @@ export default function Payments() {
                 {payModalFlatResidents.length === 0 && (
                   <option value="">-- No resident profile linked to flat --</option>
                 )}
-                {(payModalFlatResidents.length > 0 ? payModalFlatResidents : residents).map(r => (
+                {(payModalFlatResidents.length > 0 ? payModalFlatResidents : [...residents].sort(sortFlats)).map(r => (
                   <option key={r.id} value={String(r.id)} className="text-slate-900 bg-white py-1">
                     {r.owner_name} {r.ownership_type ? `(${r.ownership_type.toUpperCase()})` : ''} {r.owner_phone ? `• ${r.owner_phone}` : ''}
                   </option>
@@ -2416,7 +2416,7 @@ export default function Payments() {
               className="w-full px-3 py-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
             >
               <option value="">-- Choose Resident of Flat {editResidentModal.payment?.unit_number || editResidentModal.payment?.unit} --</option>
-              {(showAllResidentsInModal || editModalFlatResidents.length === 0 ? residents : editModalFlatResidents).map(r => (
+              {(showAllResidentsInModal || editModalFlatResidents.length === 0 ? [...residents].sort(sortFlats) : editModalFlatResidents).map(r => (
                 <option key={r.id} value={String(r.id)} className="text-slate-900 bg-white py-1">
                   {r.owner_name} {r.ownership_type ? `(${r.ownership_type.toUpperCase()})` : ''} {r.owner_phone ? `• ${r.owner_phone}` : ''}
                 </option>

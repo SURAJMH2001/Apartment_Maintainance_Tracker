@@ -98,6 +98,8 @@ def get_vehicles(
         except Exception:
             pass
         results.append(_build_vehicle_response(v, res))
+    from app.api.v1.residents import flat_sort_rank
+    results.sort(key=lambda item: (flat_sort_rank(item.unit_number), item.vehicle_number or ""))
     return results
 
 @router.post("", response_model=VehicleResponse)

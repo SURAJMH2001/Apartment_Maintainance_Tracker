@@ -13,17 +13,9 @@ import {
   CreditCard, Calendar, User, Home, CheckCircle2, Car, Trash2 
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
+import { sortFlats, SOCIETY_FLATS_ORDER } from '../utils/formatters';
 
-const sortFlats = (a, b) => {
-  const valA = typeof a === 'string' ? a : (a?.unit_number || '');
-  const valB = typeof b === 'string' ? b : (b?.unit_number || '');
-  return valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
-};
-
-const DEFAULT_FLATS = [
-  'NB-GF1', 'NB-GF2', 'NB-FF1', 'NB-FF2', 'NB-FF3', 'NB-SF1', 'NB-SF2', 'NB-TF1', 'NB-TF2',
-  'NNG-GF1', 'NNG-GF2', 'NNG-FF1', 'NNG-FF2', 'NNG-FF3', 'NNG-SF1', 'NNG-SF2', 'NNG-TF1', 'NNG-TF2'
-];
+const DEFAULT_FLATS = SOCIETY_FLATS_ORDER;
 
 export default function Residents() {
   const navigate = useNavigate();
@@ -644,12 +636,18 @@ export default function Residents() {
               <input
                 type="text"
                 name="unit_number"
+                list="flats-order-list"
                 required
-                placeholder="e.g. NB-FF1 or NNG-GF2"
+                placeholder="e.g. NNG-GF1 or NB-FF1"
                 value={formData.unit_number}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
+              <datalist id="flats-order-list">
+                {SOCIETY_FLATS_ORDER.map(flat => (
+                  <option key={flat} value={flat} />
+                ))}
+              </datalist>
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Floor (Optional)</label>

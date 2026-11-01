@@ -27,9 +27,42 @@ def _can_manage_resident(current_user, target_resident: Resident, db: Session) -
             return True
     return False
 
+SOCIETY_FLATS_ORDER = [
+    'NNG-GF1', 'NNG-GF2', 'NNG-GF3',
+    'NNG-FF1', 'NNG-FF2', 'NNG-FF3',
+    'NNG-SF1', 'NNG-SF2', 'NNG-SF3',
+    'NNG-TF1', 'NNG-TF2', 'NNG-TF3',
+    'NB-GF1', 'NB-GF2', 'NB-GF3',
+    'NB-FF1', 'NB-FF2', 'NB-FF3',
+    'NB-SF1', 'NB-SF2', 'NB-SF3',
+    'NB-TF1', 'NB-TF2', 'NB-TF3',
+    'NB-PH1'
+]
+
+def flat_sort_rank(unit: Optional[str]) -> int:
+    unit_str = (unit or "").upper().strip()
+    if unit_str in SOCIETY_FLATS_ORDER:
+        return SOCIETY_FLATS_ORDER.index(unit_str)
+    score = 2000
+    if unit_str.startswith("NNG"):
+        score = 0
+    elif unit_str.startswith("NB"):
+        score = 1000
+    fl_score = 90
+    if "GF" in unit_str: fl_score = 10
+    elif "FF" in unit_str: fl_score = 20
+    elif "SF" in unit_str: fl_score = 30
+    elif "TF" in unit_str: fl_score = 40
+    elif "PH" in unit_str: fl_score = 50
+    import re
+    m = re.search(r'\d+', unit_str)
+    num = int(m.group(0)) if m else 0
+    return score + fl_score + num
+
 @router.get("", response_model=List[ResidentResponse])
 def get_residents(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     residents = resident_repo.get_all(db, skip=skip, limit=limit)
+    residents.sort(key=lambda r: (flat_sort_rank(r.unit_number), r.owner_name or ""))
     cleaned = (current_user.role or "").strip().lower().replace("_", "-")
     is_admin = cleaned in ["admin", "super-admin", "superadmin", "manager"]
     if is_admin:

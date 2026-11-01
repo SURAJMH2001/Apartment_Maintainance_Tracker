@@ -128,6 +128,11 @@ def get_dashboard_summary(
         "overdue_tasks": overdue_tasks,
         "total_tasks": total_tasks,
         # CamelCase aliases for frontend
+        "monthlyIncome": round(month_income, 2),
+        "pendingDues": round(total_pending_dues, 2),
+        "totalResidents": total_residents,
+        "activeAlerts": active_alerts,
+        "collectionRate": collection_rate,
         "pendingTasks": pending_tasks,
         "completedTasks": completed_tasks,
         "overdueTasks": overdue_tasks,
@@ -179,7 +184,7 @@ def get_monthly_trend(
         pivot[mo]["income"] = round(pivot[mo]["income"], 2)
         pivot[mo]["expense"] = round(pivot[mo]["expense"], 2)
 
-    return {"trends": [pivot[mo] for mo in months_list]}
+    return [pivot[mo] for mo in months_list]
 
 @router.get("/category-breakdown")
 def get_category_breakdown(
@@ -193,12 +198,15 @@ def get_category_breakdown(
         cat = (exp.category or "Other").capitalize()
         cats[cat] = cats.get(cat, 0.0) + float(exp.amount or 0)
     
-    return {
-        "breakdown": [
-            {"category": k, "amount": round(v, 2)}
-            for k, v in cats.items()
-        ]
-    }
+    return [
+        {
+            "category": k,
+            "amount": round(v, 2),
+            "name": k,
+            "value": round(v, 2)
+        }
+        for k, v in cats.items()
+    ]
 
 @router.get("/top-defaulters")
 def get_top_defaulters(
@@ -226,11 +234,15 @@ def get_top_defaulters(
         if resident:
             result.append(
                 {
+                    "id": op.resident_id,
                     "resident_id": op.resident_id,
-                    "unit_number": resident.unit_number,
+                    "name": resident.owner_name,
                     "owner_name": resident.owner_name,
+                    "unit": resident.unit_number,
+                    "unit_number": resident.unit_number,
                     "owner_phone": resident.owner_phone,
                     "overdue_count": op.overdue_count,
+                    "amount": round(op.total_outstanding or 0.0, 2),
                     "total_outstanding": round(op.total_outstanding or 0.0, 2),
                 }
             )
@@ -267,8 +279,10 @@ def get_recent_transactions(
         result.append(
             {
                 "id": t.id,
+                "date": t.transaction_date.isoformat() if t.transaction_date else None,
                 "transaction_date": t.transaction_date.isoformat() if t.transaction_date else None,
                 "amount": t.amount,
+                "type": t.transaction_type,
                 "transaction_type": t.transaction_type,
                 "category": t.category,
                 "description": t.description,

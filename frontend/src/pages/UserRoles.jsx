@@ -540,13 +540,6 @@ export default function UserRoles() {
                             if (window.confirm(`Are you sure you want to remove user ${u.display_name || u.username}?`)) {
                               deleteUserMut.mutate(u.id);
                             }
-                        </span>
-                      ) : u.id !== currentUser?.id ? (
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Are you sure you want to remove user ${u.display_name || u.username}?`)) {
-                              deleteUserMut.mutate(u.id);
-                            }
                           }}
                           className="text-rose-500 hover:text-rose-700 p-1.5 rounded-md hover:bg-rose-50 transition-colors"
                           title="Delete User"

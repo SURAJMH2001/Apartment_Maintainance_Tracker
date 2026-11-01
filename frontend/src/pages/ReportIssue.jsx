@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { issuesApi } from '../api/maintenance';
 import { AlertTriangle, Phone, Clock, User, Send, Wrench, Droplets, Zap, Wind, Package, AlertCircle } from 'lucide-react';
 import { SearchBar, StatCard } from '../components/ui';
 import Spinner from '../components/ui/Spinner';
 
 export default function ReportIssue() {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('maintenance');
@@ -25,7 +28,7 @@ export default function ReportIssue() {
 
   const { data: issues, isLoading } = useQuery({
     queryKey: ['issues'],
-    queryFn: () => fetch('/api/issues').then(res => res.json()).catch(() => []),
+    queryFn: () => issuesApi.getAll().then(res => res.data).catch(() => []),
   });
 
   const { data: categories } = useQuery({
@@ -42,10 +45,10 @@ export default function ReportIssue() {
   });
 
   const submitMutation = useMutation({
-    mutationFn: (data) => fetch('/api/issues', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+    mutationFn: (data) => issuesApi.create(data),
     onSuccess: () => {
       setShowForm(false);
-      queryClient.invalidateQueries(['issues']);
+      queryClient.invalidateQueries({ queryKey: ['issues'] });
       alert('Issue reported successfully! We will get back to you soon.');
     },
   });

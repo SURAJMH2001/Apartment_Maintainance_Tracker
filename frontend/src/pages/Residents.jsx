@@ -18,7 +18,13 @@ export default function Residents() {
     ])
   });
 
-  const filtered = residents.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.unit_number.toLowerCase().includes(search.toLowerCase()));
+  const filtered = residents.filter(r => {
+    const name = r.owner_name || r.name || '';
+    const unit = r.unit_number || r.flat_number || r.unit || '';
+    const phone = r.owner_phone || r.phone || '';
+    const q = (search || '').toLowerCase();
+    return name.toLowerCase().includes(q) || unit.toLowerCase().includes(q) || phone.toLowerCase().includes(q);
+  });
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
@@ -31,31 +37,33 @@ export default function Residents() {
       </div>
       
       {isLoading ? <Spinner /> : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto relative">
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Unit</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Phone</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Move-in Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Actions</th>
+                <th className="sticky left-0 z-10 bg-slate-50 px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider shadow-[1px_0_0_0_#e2e8f0]">Unit</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Name</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Phone</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Type</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Move-in Date</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-200">
               {filtered.map(r => (
                 <tr key={r.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/residents/${r.id}`)}>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-900">{r.unit_number}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-900">{r.name}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">{r.phone}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500 capitalize">{r.type}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">{formatDate(r.move_in_date)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <Badge variant={r.status === 'active' ? 'success' : r.status === 'overdue' ? 'danger' : 'default'}>{r.status}</Badge>
+                  <td className="sticky left-0 z-10 bg-white hover:bg-slate-50 px-4 py-3 whitespace-nowrap text-sm font-semibold text-slate-900 text-center shadow-[1px_0_0_0_#e2e8f0]">{r.unit_number || r.flat_number || '—'}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-800 text-center font-medium">{r.owner_name || r.name || '—'}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500 text-center">{r.owner_phone || r.phone || '—'}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600 text-center capitalize">{r.ownership_type || r.type || 'owner'}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500 text-center">{r.move_in_date ? formatDate(r.move_in_date) : '—'}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                    <Badge variant={r.is_active !== false && r.status !== 'overdue' ? 'success' : r.status === 'overdue' ? 'danger' : 'default'}>
+                      {r.status || (r.is_active !== false ? 'active' : 'inactive')}
+                    </Badge>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-indigo-600">View</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-indigo-600 font-medium">View</td>
                 </tr>
               ))}
             </tbody>

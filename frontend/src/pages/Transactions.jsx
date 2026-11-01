@@ -22,27 +22,29 @@ export default function Transactions() {
       </div>
       
       {isLoading ? <Spinner /> : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto relative">
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Description</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Category</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Amount</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Resident</th>
+                <th className="sticky left-0 z-10 bg-slate-50 px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider shadow-[1px_0_0_0_#e2e8f0]">Date</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Description</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Category</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Type</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Amount</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Resident</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-200">
               {txs.map(t => (
-                <tr key={t.id}>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">{formatDate(t.date)}</td>
-                  <td className="px-4 py-3 text-sm text-slate-900">{t.description}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500 capitalize">{t.category}</td>
-                  <td className="px-4 py-3 whitespace-nowrap"><Badge variant={t.type === 'income' ? 'success' : 'danger'}>{t.type}</Badge></td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-900">{formatCurrency(t.amount)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">{t.resident || '-'}</td>
+                <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="sticky left-0 z-10 bg-white hover:bg-slate-50 px-4 py-3 whitespace-nowrap text-sm text-slate-600 text-center shadow-[1px_0_0_0_#e2e8f0] font-medium">{formatDate(t.date || t.transaction_date || t.created_at)}</td>
+                  <td className="px-4 py-3 text-sm text-slate-800 text-center font-medium">{t.description}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600 text-center capitalize">{t.category}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                    <Badge variant={t.type === 'income' || t.transaction_type === 'income' ? 'success' : 'danger'}>{t.type || t.transaction_type}</Badge>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-900 text-center">{formatCurrency(t.amount)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500 text-center">{t.resident || t.resident_name || '—'}</td>
                 </tr>
               ))}
             </tbody>

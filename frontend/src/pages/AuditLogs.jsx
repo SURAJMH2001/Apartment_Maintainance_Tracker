@@ -37,8 +37,8 @@ export default function AuditLogs() {
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
-                <th className="sticky left-0 bg-slate-50 z-20 px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider border-r border-slate-200">Timestamp</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">User</th>
+                <th className="sticky left-0 bg-slate-50 z-20 px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider border-r border-slate-200">Timestamp</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">User</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Action</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Entity</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Entity ID</th>
@@ -48,8 +48,8 @@ export default function AuditLogs() {
             <tbody className="bg-white divide-y divide-slate-200">
               {logs.map(log => (
                 <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="sticky left-0 bg-white z-10 px-4 py-3 whitespace-nowrap text-sm text-slate-700 font-medium border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">{new Date(log.timestamp).toLocaleString()}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-slate-900">{log.user}</td>
+                  <td className="sticky left-0 bg-white z-10 px-4 py-3 whitespace-nowrap text-sm text-slate-700 font-medium text-center border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">{new Date(log.timestamp).toLocaleString()}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-slate-900 text-center">{log.user}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-center">{getActionBadge(log.action)}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500 text-center font-mono">{log.entity_type}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500 text-center font-mono">{log.entity_id}</td>

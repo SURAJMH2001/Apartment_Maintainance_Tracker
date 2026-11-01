@@ -2292,9 +2292,11 @@ export default function Payments() {
                 onChange={e => setPayModal({ ...payModal, payerResidentId: e.target.value })}
                 className="w-full px-3 py-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none cursor-pointer"
               >
-                {payModalFlatResidents.length === 0 && (
+                {payModalFlatResidents.length === 0 ? (
                   <option value="">-- No resident profile linked to flat --</option>
-                )}
+                ) : !payModal.payerResidentId ? (
+                  <option value="">-- Select Resident ({payModalFlatResidents.length} in flat) --</option>
+                ) : null}
                 {(payModalFlatResidents.length > 0 ? payModalFlatResidents : [...residents].sort(sortFlats)).map(r => (
                   <option key={r.id} value={String(r.id)} className="text-slate-900 bg-white py-1">
                     {r.owner_name} {r.ownership_type ? `(${r.ownership_type.toUpperCase()})` : ''} {r.owner_phone ? `• ${r.owner_phone}` : ''}
@@ -2328,7 +2330,7 @@ export default function Payments() {
               onChange={e => setPayModal({ ...payModal, paymentMethod: e.target.value })}
               className="w-full px-3 py-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none cursor-pointer"
             >
-              <option value="UPI">UPI (Google Pay, PhonePe, Paytm)</option>
+              <option value="UPI">UPI</option>
               <option value="Bank Transfer">Bank Transfer / NEFT / IMPS</option>
               <option value="Cash">Cash</option>
               <option value="Cheque">Cheque</option>

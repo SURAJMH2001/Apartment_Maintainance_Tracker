@@ -12,7 +12,8 @@ export default function UserRoles() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore(state => state.user);
   const setUser = useAuthStore(state => state.setUser);
-  const isCurrentUserSuperAdmin = currentUser?.role === 'super-admin' || currentUser?.role === 'superadmin';
+  const rawCurrentRole = (currentUser?.role || '').toLowerCase().trim().replace(/_/g, '-').replace(/\s+/g, '-');
+  const isCurrentUserSuperAdmin = rawCurrentRole === 'super-admin' || rawCurrentRole === 'superadmin';
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingCode, setEditingCode] = useState(false);
   const [newCodeInput, setNewCodeInput] = useState('');

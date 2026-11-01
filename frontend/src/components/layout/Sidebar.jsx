@@ -170,56 +170,31 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
                 )}
               </NavLink>
 
-              {/* 2. For Admins & Super Admins: GROUP: Financial (Immediately after Dashboard, with Payments & Dues first, then Transactions) */}
-              {isAdmin ? (
-                <div>
-                  {!isCollapsed ? (
-                    <>
-                      <button
-                        onClick={() => toggleDropdown('Financial')}
-                        className="w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800/80 hover:text-white transition-all"
-                      >
-                        <div className="flex items-center">
-                          <IndianRupee className="mr-3 h-5 w-5 text-emerald-400" />
-                          <span>Financial</span>
-                        </div>
-                        {openDropdowns['Financial'] ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
-                      </button>
-                      {openDropdowns['Financial'] && (
-                        <div className="ml-4 mt-1 pl-2 border-l border-slate-800 space-y-1">
-                          <NavLink to="/payments" className={subNavLinkClass}>
-                            <CreditCard className="mr-2.5 h-4 w-4" />
-                            Payments & Dues
-                          </NavLink>
-                          <NavLink to="/transactions" className={subNavLinkClass}>
-                            <ArrowLeftRight className="mr-2.5 h-4 w-4" />
-                            Transactions
-                          </NavLink>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="space-y-1">
-                      <NavLink to="/payments" className={collapsedNavLinkClass} title="Payments & Dues">
-                        <CreditCard className="h-5 w-5 text-emerald-400" />
-                      </NavLink>
-                      <NavLink to="/transactions" className={collapsedNavLinkClass} title="Transactions (Passbook)">
-                        <ArrowLeftRight className="h-5 w-5 text-emerald-400" />
-                      </NavLink>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* For Viewers & Admins (NOT Super-Admin): Ungrouped Payments & Dues immediately under Dashboard */
+              {/* 2. STANDALONE: Payments & Dues (Ungrouped directly below Dashboard for all users) */}
+              <NavLink 
+                to="/payments" 
+                className={isCollapsed ? collapsedNavLinkClass : navLinkClass}
+                title="Payments & Dues"
+              >
+                {({ isActive }) => (
+                  <div className={clsx("flex items-center", isCollapsed ? "justify-center" : "")}>
+                    <CreditCard className={clsx("h-5 w-5 flex-shrink-0 text-emerald-400", !isCollapsed && "mr-3", isActive ? "text-white" : "")} />
+                    {!isCollapsed && <span>Payments & Dues</span>}
+                  </div>
+                )}
+              </NavLink>
+
+              {/* 3. STANDALONE: Transactions / Passbook (ONLY for Super Admin; completely hidden for admin and viewer) */}
+              {isSuperAdmin && (
                 <NavLink 
-                  to="/payments" 
+                  to="/transactions" 
                   className={isCollapsed ? collapsedNavLinkClass : navLinkClass}
-                  title="Payments & Dues"
+                  title="Transactions (Passbook)"
                 >
                   {({ isActive }) => (
                     <div className={clsx("flex items-center", isCollapsed ? "justify-center" : "")}>
-                      <CreditCard className={clsx("h-5 w-5 flex-shrink-0 text-emerald-400", !isCollapsed && "mr-3", isActive ? "text-white" : "")} />
-                      {!isCollapsed && <span>Payments & Dues</span>}
+                      <ArrowLeftRight className={clsx("h-5 w-5 flex-shrink-0 text-emerald-400", !isCollapsed && "mr-3", isActive ? "text-white" : "")} />
+                      {!isCollapsed && <span>Transactions (Passbook)</span>}
                     </div>
                   )}
                 </NavLink>

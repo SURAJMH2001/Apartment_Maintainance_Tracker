@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle, Phone, Clock, User, Send, Wrench, Droplets,
   Zap, Wind, Package, AlertCircle, Calendar, CheckCircle, Search,
-  ShieldAlert, Sparkles, Filter, CheckCircle2
+  ShieldAlert, Sparkles, Filter, CheckCircle2, MapPin, Mail
 } from 'lucide-react';
 import { StatCard } from '../components/ui';
 import Spinner from '../components/ui/Spinner';
@@ -30,6 +30,8 @@ export default function ReportIssue() {
     title: '',
     description: '',
     location: '',
+    dateNeeded: new Date().toISOString().split('T')[0],
+    timeNeeded: 'Morning (9 AM - 12 PM)',
   });
 
   const categories = [
@@ -40,14 +42,20 @@ export default function ReportIssue() {
     { id: 'amenity', name: 'Clubhouse / Lift / Garden', icon: <Package className="w-4 h-4 text-emerald-500" /> },
   ];
 
-  const { data: issues = [], isLoading } = useQuery({
+  const timeSlots = [
+    'Morning (9 AM - 12 PM)',
+    'Afternoon (12 PM - 4 PM)',
+    'Evening (4 PM - 8 PM)',
+    'Anytime / Urgent'
+  ];
+
+  const { data: rawIssues = [], isLoading } = useQuery({
     queryKey: ['issues'],
     queryFn: async () => {
       try {
         const res = await issuesApi.getAll();
-        if (Array.isArray(res.data) && res.data.length > 0) {
-          return res.data;
-        }
+        const list = Array.isArray(res.data) ? res.data : (res.data?.issues || []);
+        if (Array.isArray(list) && list.length > 0) return list;
       } catch (err) {
         console.warn('Backend issues fetch failed, using fallback tickets:', err);
       }
@@ -61,6 +69,9 @@ export default function ReportIssue() {
           category: 'electrical',
           priority: 'medium',
           status: 'in_progress',
+          location: 'Block A, 1st Floor Corridor',
+          date_needed: '2026-11-02',
+          time_needed: 'Morning (9 AM - 12 PM)',
           created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
         },
         {
@@ -72,6 +83,9 @@ export default function ReportIssue() {
           category: 'amenity',
           priority: 'low',
           status: 'resolved',
+          location: 'Clubhouse Gym',
+          date_needed: '2026-10-30',
+          time_needed: 'Evening (4 PM - 8 PM)',
           created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
         },
         {
@@ -83,11 +97,16 @@ export default function ReportIssue() {
           category: 'plumbing',
           priority: 'high',
           status: 'pending',
+          location: 'Rooftop Water Tank',
+          date_needed: '2026-11-03',
+          time_needed: 'Morning (9 AM - 12 PM)',
           created_at: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString()
         }
       ];
     },
   });
+
+  const issues = Array.isArray(rawIssues) ? rawIssues : [];
 
   const submitMutation = useMutation({
     mutationFn: (data) =>
@@ -95,9 +114,10 @@ export default function ReportIssue() {
         ...data,
         category: selectedCategory,
         priority: selectedPriority,
+        description: `${data.description}${data.dateNeeded ? ` [Preferred Date: ${data.dateNeeded}]` : ''}${data.timeNeeded ? ` [Preferred Time: ${data.timeNeeded}]` : ''}`
       }),
     onSuccess: () => {
-      toast.success('Maintenance issue reported successfully! Ticket raised.');
+      toast.success('Maintenance ticket raised successfully! Service team notified.');
       queryClient.invalidateQueries({ queryKey: ['issues'] });
       setFormData({
         name: user?.display_name || user?.username || '',
@@ -109,6 +129,8 @@ export default function ReportIssue() {
         title: '',
         description: '',
         location: '',
+        dateNeeded: new Date().toISOString().split('T')[0],
+        timeNeeded: 'Morning (9 AM - 12 PM)',
       });
     },
     onError: (err) => {
@@ -117,13 +139,13 @@ export default function ReportIssue() {
   });
 
   const stats = {
-    totalIssues: issues?.length || 0,
-    pending: issues?.filter((i) => i.status === 'pending' || i.status === 'open')?.length || 0,
-    inProgress: issues?.filter((i) => i.status === 'in_progress')?.length || 0,
-    resolved: issues?.filter((i) => i.status === 'resolved' || i.status === 'closed')?.length || 0,
+    totalIssues: issues.length,
+    pending: issues.filter((i) => i.status === 'pending' || i.status === 'open').length,
+    inProgress: issues.filter((i) => i.status === 'in_progress').length,
+    resolved: issues.filter((i) => i.status === 'resolved' || i.status === 'closed').length,
   };
 
-  const filteredIssues = issues?.filter((item) => {
+  const filteredIssues = issues.filter((item) => {
     const matchesSearch =
       (item.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -180,8 +202,8 @@ export default function ReportIssue() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-            Report Maintenance Issue
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Wrench className="w-7 h-7 text-rose-600" /> Report Maintenance Issue
           </h1>
           <p className="text-slate-500 text-sm mt-1">
             Log facility repairs, plumbing, electrical faults, and track resolution in real time.
@@ -256,7 +278,7 @@ export default function ReportIssue() {
               <div className="p-12 flex justify-center">
                 <Spinner />
               </div>
-            ) : filteredIssues?.length === 0 ? (
+            ) : filteredIssues.length === 0 ? (
               <div className="p-12 text-center text-slate-400">
                 <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-emerald-500 opacity-60" />
                 <p className="font-semibold text-slate-700">No issues found</p>
@@ -279,6 +301,7 @@ export default function ReportIssue() {
                             </div>
                             <p className="text-xs text-slate-400 mt-0.5">
                               {item.unit ? `Unit: ${item.unit} • ` : ''}Category: <span className="capitalize">{item.category}</span>
+                              {item.location && ` • Location: ${item.location}`}
                             </p>
                           </div>
                           <div>
@@ -290,24 +313,23 @@ export default function ReportIssue() {
                           {item.description}
                         </p>
 
-                        <div className="flex items-center gap-4 text-xs text-slate-400">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" />
-                            {new Date(item.created_at || item.date || Date.now()).toLocaleDateString('en-IN', {
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-1 border-t border-slate-100">
+                          <span className="flex items-center gap-1 font-medium text-slate-600">
+                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                            Logged: {new Date(item.created_at || item.date || Date.now()).toLocaleDateString('en-IN', {
                               day: 'numeric',
                               month: 'short',
                               year: 'numeric'
                             })}
                           </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5" />
-                            {new Date(item.created_at || item.date || Date.now()).toLocaleTimeString('en-IN', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
+                          {(item.date_needed || item.time_needed) && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-medium border border-amber-200">
+                              <Clock className="w-3.5 h-3.5 text-amber-600" />
+                              Preferred: {item.date_needed || ''} {item.time_needed ? `(${item.time_needed})` : ''}
+                            </span>
+                          )}
                           {item.name && (
-                            <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1 ml-auto text-slate-500">
                               <User className="w-3.5 h-3.5" />
                               Reported by {item.name}
                             </span>
@@ -322,7 +344,7 @@ export default function ReportIssue() {
           </div>
         </div>
 
-        {/* Right: Submit New Issue */}
+        {/* Right: Raise Maintenance Ticket Form */}
         <div className="space-y-4">
           <div className="bg-gradient-to-br from-rose-600 via-rose-700 to-orange-700 p-6 rounded-2xl shadow-xl text-white border border-rose-400/20 relative overflow-hidden">
             {/* Glow Orbs */}
@@ -334,7 +356,7 @@ export default function ReportIssue() {
               <h3 className="text-lg font-bold">Raise Maintenance Ticket</h3>
             </div>
             <p className="text-xs text-rose-100 mb-5">
-              Submit an issue to notify society maintenance staff and assigned vendors.
+              Submit an issue with preferred date/time slot to notify society staff.
             </p>
 
             <form
@@ -411,6 +433,66 @@ export default function ReportIssue() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-rose-100 uppercase mb-1">
+                    Contact Phone
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 9845012345"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-white/10 border border-white/20 rounded-xl text-white placeholder-rose-200/60 text-sm focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-rose-100 uppercase mb-1">
+                    Location / Area
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Kitchen / Corridor"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-white/10 border border-white/20 rounded-xl text-white placeholder-rose-200/60 text-sm focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Preferred Date & Time Slots (Calendar Toggle & Time thing requested) */}
+              <div className="grid grid-cols-2 gap-3 p-3 bg-black/20 rounded-xl border border-white/10">
+                <div>
+                  <label className="block text-[11px] font-semibold text-amber-200 uppercase mb-1 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-amber-300" />
+                    Preferred Date
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.dateNeeded}
+                    onChange={(e) => setFormData({ ...formData, dateNeeded: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-rose-900/70 border border-white/20 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-white/50 cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-amber-200 uppercase mb-1 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-amber-300" />
+                    Time Slot
+                  </label>
+                  <select
+                    value={formData.timeNeeded}
+                    onChange={(e) => setFormData({ ...formData, timeNeeded: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-rose-900/70 border border-white/20 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-white/50"
+                  >
+                    {timeSlots.map(slot => (
+                      <option key={slot} value={slot} className="bg-slate-900 text-white">
+                        {slot}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[11px] font-semibold text-rose-100 uppercase mb-1">
                   Issue Title
@@ -421,19 +503,6 @@ export default function ReportIssue() {
                   placeholder="e.g. Water leakage near valve"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-white/10 border border-white/20 rounded-xl text-white placeholder-rose-200/60 text-sm focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-rose-100 uppercase mb-1">
-                  Location / Specific Area
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Block A 2nd floor shaft"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   className="w-full px-3.5 py-2 bg-white/10 border border-white/20 rounded-xl text-white placeholder-rose-200/60 text-sm focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
                 />
               </div>

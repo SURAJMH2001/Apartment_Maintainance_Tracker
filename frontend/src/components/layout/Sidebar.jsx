@@ -170,8 +170,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
                 )}
               </NavLink>
 
-              {/* 2. For Super Admin: GROUP: Financial (Immediately after Dashboard, with Payments & Dues first, then Transactions) */}
-              {isSuperAdmin ? (
+              {/* 2. For Admins & Super Admins: GROUP: Financial (Immediately after Dashboard, with Payments & Dues first, then Transactions) */}
+              {isAdmin ? (
                 <div>
                   {!isCollapsed ? (
                     <>

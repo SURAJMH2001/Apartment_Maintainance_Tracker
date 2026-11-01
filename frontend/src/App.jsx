@@ -47,7 +47,7 @@ function App() {
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="residents" element={<Residents />} />
               <Route path="residents/:id" element={<ResidentDetail />} />
-              <Route path="transactions" element={<RoleProtectedRoute superAdminOnly><Transactions /></RoleProtectedRoute>} />
+              <Route path="transactions" element={<RoleProtectedRoute adminOnly><Transactions /></RoleProtectedRoute>} />
               <Route path="payments" element={<Payments />} />
               <Route path="feedback" element={<Feedback />} />
               <Route path="issues" element={<ReportIssue />} />

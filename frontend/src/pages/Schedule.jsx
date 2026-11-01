@@ -1,28 +1,70 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Clock, AlertTriangle, CheckCircle, Plus } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, addDays, parseISO } from 'date-fns';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  ChevronLeft, ChevronRight, Clock, AlertTriangle, CheckCircle, 
+  Plus, Calendar as CalendarIcon, Tag, MapPin, CheckCircle2 
+} from 'lucide-react';
+import { 
+  format, addMonths, subMonths, startOfMonth, endOfMonth, 
+  startOfWeek, endOfWeek, isSameMonth, isSameDay, addDays, subDays 
+} from 'date-fns';
 import Modal from '../components/ui/Modal';
 import { toast } from 'react-hot-toast';
-
-const INITIAL_EVENTS = [
-  { id: 1, title: 'Elevator Maintenance', date: new Date().toISOString(), status: 'pending', priority: 'high', category: 'Electrical' },
-  { id: 2, title: 'Pool Cleaning', date: addDays(new Date(), 2).toISOString(), status: 'pending', priority: 'medium', category: 'Maintenance' },
-  { id: 3, title: 'Fire Alarm Test', date: subDays(new Date(), 5).toISOString(), status: 'completed', priority: 'critical', category: 'Safety' },
-  { id: 4, title: 'HVAC Inspection', date: subDays(new Date(), 1).toISOString(), status: 'overdue', priority: 'medium', category: 'HVAC' },
-];
-
-function subDays(date, amount) {
-  const d = new Date(date);
-  d.setDate(d.getDate() - amount);
-  return d;
-}
+import { tasksApi } from '../api/maintenance';
 
 export default function Schedule() {
+  const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useState(INITIAL_EVENTS);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ title: '', date: '', category: 'Maintenance', status: 'pending' });
+
+  const [formData, setFormData] = useState({
+    title: '',
+    due_date: new Date().toISOString().split('T')[0],
+    category: 'Maintenance',
+    priority: 'medium',
+    status: 'pending'
+  });
+
+  const { data: rawTasks = [], isLoading } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: async () => {
+      try {
+        const res = await tasksApi.getAll();
+        const list = Array.isArray(res.data) ? res.data : (res.data?.tasks || []);
+        if (Array.isArray(list) && list.length > 0) return list;
+      } catch (err) {
+        console.warn('Schedule tasks fallback:', err);
+      }
+      return [
+        { id: 1, title: 'Elevator Maintenance', due_date: format(new Date(), 'yyyy-MM-dd'), status: 'pending', priority: 'high', category: 'Electrical' },
+        { id: 2, title: 'Pool Cleaning', due_date: format(addDays(new Date(), 2), 'yyyy-MM-dd'), status: 'pending', priority: 'medium', category: 'Maintenance' },
+        { id: 3, title: 'Fire Alarm Test', due_date: format(subDays(new Date(), 5), 'yyyy-MM-dd'), status: 'completed', priority: 'critical', category: 'Safety' },
+        { id: 4, title: 'HVAC Inspection', due_date: format(addDays(new Date(), 7), 'yyyy-MM-dd'), status: 'pending', priority: 'medium', category: 'HVAC' },
+        { id: 5, title: 'Water Tank Disinfection', due_date: format(addDays(new Date(), 4), 'yyyy-MM-dd'), status: 'pending', priority: 'high', category: 'Plumbing' },
+      ];
+    }
+  });
+
+  const tasks = Array.isArray(rawTasks) ? rawTasks : [];
+
+  const createMutation = useMutation({
+    mutationFn: (data) => tasksApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success('Event scheduled successfully!');
+      setIsModalOpen(false);
+      setFormData({
+        title: '',
+        due_date: new Date().toISOString().split('T')[0],
+        category: 'Maintenance',
+        priority: 'medium',
+        status: 'pending'
+      });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.detail || 'Failed to schedule event');
+    }
+  });
 
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
@@ -30,167 +72,248 @@ export default function Schedule() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setEvents([...events, { ...formData, id: Date.now(), priority: 'medium' }]);
-      setIsSubmitting(false);
-      setIsModalOpen(false);
-      toast.success('Task scheduled');
-      setFormData({ title: '', date: '', category: 'Maintenance', status: 'pending' });
-    }, 500);
+    if (!formData.title.trim()) {
+      toast.error('Please enter a task title');
+      return;
+    }
+    createMutation.mutate(formData);
   };
 
-  const renderHeader = () => (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Maintenance Schedule</h1>
-        <p className="text-slate-500 mt-1">Visually plan and track upcoming work</p>
-      </div>
-      <button 
-        onClick={() => setIsModalOpen(true)}
-        className="inline-flex justify-center items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-all shadow-md w-full sm:w-auto"
-      >
-        <Plus className="w-5 h-5" />
-        Schedule Task
-      </button>
-    </div>
-  );
+  // Calendar calculations
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(monthStart);
+  const startDate = startOfWeek(monthStart);
+  const endDate = endOfWeek(monthEnd);
 
-  const renderControls = () => (
-    <div className="flex items-center justify-between mb-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-      <h2 className="text-lg sm:text-xl font-bold text-slate-800">
-        {format(currentDate, 'MMMM yyyy')}
-      </h2>
-      <div className="flex items-center gap-1 sm:gap-2">
-        <button onClick={today} className="px-3 sm:px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
-          Today
-        </button>
-        <button onClick={prevMonth} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <button onClick={nextMonth} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-          <ChevronRight className="w-5 h-5" />
-        </button>
-      </div>
-    </div>
-  );
+  const days = [];
+  let day = startDate;
+  while (day <= endDate) {
+    days.push(day);
+    day = addDays(day, 1);
+  }
 
-  const renderCells = () => {
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(monthStart);
-    const startDate = startOfWeek(monthStart);
-    const endDate = endOfWeek(monthEnd);
-
-    const dateFormat = 'd';
-    const rows = [];
-    let days = [];
-    let day = startDate;
-    let formattedDate = '';
-
-    while (day <= endDate) {
-      for (let i = 0; i < 7; i++) {
-        formattedDate = format(day, dateFormat);
-        const cloneDay = day;
-        
-        const dayEvents = events.filter(e => isSameDay(parseISO(e.date), cloneDay));
-
-        days.push(
-          <div
-            className={`min-h-[80px] md:min-h-[120px] p-1 sm:p-2 border-r border-b border-slate-100 transition-all min-w-[80px] sm:min-w-0 ${
-              !isSameMonth(day, monthStart) ? 'bg-slate-50 text-slate-400' : 
-              isSameDay(day, new Date()) ? 'bg-indigo-50/30 text-indigo-700 font-bold' : 'bg-white text-slate-700'
-            }`}
-            key={day}
-          >
-            <div className="flex justify-between items-center mb-1">
-              <span className={`text-xs sm:text-sm w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full ${isSameDay(day, new Date()) ? 'bg-indigo-600 text-white' : ''}`}>
-                {formattedDate}
-              </span>
-            </div>
-            
-            <div className="flex flex-col gap-1 mt-1 sm:mt-2">
-              {dayEvents.map(event => (
-                <div key={event.id} className={`text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 sm:py-1 rounded border font-medium truncate flex items-center gap-1 ${
-                  event.status === 'completed' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
-                  event.status === 'overdue' ? 'bg-rose-50 border-rose-200 text-rose-700' :
-                  'bg-amber-50 border-amber-200 text-amber-700'
-                }`}>
-                  {event.title}
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-        day = addDays(day, 1);
-      }
-      rows.push(
-        <div className="grid grid-cols-7 min-w-[560px] sm:min-w-full" key={day}>
-          {days}
-        </div>
-      );
-      days = [];
-    }
-    return <div className="border-l border-t border-slate-100 rounded-b-2xl">{rows}</div>;
-  };
-
-  const renderDays = () => {
-    const dateFormat = 'EEEE';
-    const days = [];
-    let startDate = startOfWeek(currentDate);
-
-    for (let i = 0; i < 7; i++) {
-      days.push(
-        <div className="py-2 sm:py-3 text-center text-[10px] sm:text-sm font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100 min-w-[80px] sm:min-w-0" key={i}>
-          {format(addDays(startDate, i), dateFormat).substring(0, 3)}
-        </div>
-      );
-    }
-    return <div className="grid grid-cols-7 bg-white rounded-t-2xl border-x border-t border-slate-100 min-w-[560px] sm:min-w-full">{days}</div>;
+  const getEventsForDay = (targetDay) => {
+    const formattedTarget = format(targetDay, 'yyyy-MM-dd');
+    return tasks.filter(t => {
+      const taskDate = (t.due_date || t.date || '').split('T')[0];
+      return taskDate === formattedTarget;
+    });
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-2">
-      {renderHeader()}
-      {renderControls()}
-      <div className="shadow-lg shadow-slate-100/50 rounded-2xl bg-white overflow-x-auto">
-        {renderDays()}
-        {renderCells()}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <CalendarIcon className="w-7 h-7 text-indigo-600" /> Maintenance Schedule
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Visual calendar to coordinate preventive servicing, inspections, and contractor visits.
+          </p>
+        </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-sm w-full sm:w-auto"
+        >
+          <Plus className="w-5 h-5" />
+          Schedule Task
+        </button>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Schedule Task">
+      {/* Month Navigation & Controls */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-bold text-slate-900">
+            {format(currentDate, 'MMMM yyyy')}
+          </h2>
+          <button
+            onClick={today}
+            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+          >
+            Today
+          </button>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={prevMonth}
+            className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
+            title="Previous Month"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={nextMonth}
+            className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
+            title="Next Month"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        {/* Days of week */}
+        <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200 text-center">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+            <div key={d} className="py-2.5 text-xs font-bold text-slate-600 uppercase">
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Days cells */}
+        <div className="grid grid-cols-7 divide-x divide-y divide-slate-100">
+          {days.map((d, index) => {
+            const isCurrentMonth = isSameMonth(d, monthStart);
+            const isToday = isSameDay(d, new Date());
+            const dayEvents = getEventsForDay(d);
+
+            return (
+              <div
+                key={index}
+                className={`min-h-[110px] sm:min-h-[130px] p-2 transition-colors flex flex-col justify-between ${
+                  !isCurrentMonth ? 'bg-slate-50/50 text-slate-300' : 'bg-white'
+                } hover:bg-slate-50`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span
+                    className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
+                      isToday
+                        ? 'bg-indigo-600 text-white'
+                        : isCurrentMonth
+                        ? 'text-slate-800'
+                        : 'text-slate-400'
+                    }`}
+                  >
+                    {format(d, 'd')}
+                  </span>
+                  {dayEvents.length > 0 && (
+                    <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full">
+                      {dayEvents.length}
+                    </span>
+                  )}
+                </div>
+
+                {/* Event Pills */}
+                <div className="space-y-1 overflow-y-auto max-h-20">
+                  {dayEvents.map((evt) => (
+                    <div
+                      key={evt.id}
+                      className={`text-[11px] p-1 rounded-md font-medium truncate flex items-center gap-1 ${
+                        evt.status === 'completed'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : evt.priority === 'critical' || evt.priority === 'high'
+                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                          : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                      }`}
+                      title={`${evt.title} (${evt.category || 'Maintenance'})`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" />
+                      <span className="truncate">{evt.title}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Schedule Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Schedule Maintenance Task">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-            <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+              Task Title <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Fire Hydrant Inspection"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-            <input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" />
-          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500">
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Scheduled Date
+              </label>
+              <input
+                type="date"
+                required
+                value={formData.due_date}
+                onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Category
+              </label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="Maintenance">Maintenance</option>
                 <option value="Electrical">Electrical</option>
                 <option value="Plumbing">Plumbing</option>
                 <option value="HVAC">HVAC</option>
-                <option value="Maintenance">Maintenance</option>
                 <option value="Safety">Safety</option>
               </select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500">
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Priority
+              </label>
+              <select
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Status
+              </label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
                 <option value="pending">Pending</option>
                 <option value="completed">Completed</option>
-                <option value="overdue">Overdue</option>
               </select>
             </div>
           </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium">Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50">
-              {isSubmitting ? 'Scheduling...' : 'Schedule Task'}
+
+          <div className="pt-3 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="px-4 py-2 border border-slate-300 bg-white text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createMutation.isPending}
+              className="px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {createMutation.isPending ? 'Scheduling...' : 'Schedule Task'}
             </button>
           </div>
         </form>

@@ -137,6 +137,11 @@ export default function Feedback() {
     return getMonthDisplay(selectedMonth);
   };
 
+  const formatMonthLabel = (mStr) => {
+    if (!mStr || mStr === 'all' || isAllTime) return 'All Time';
+    return getMonthDisplay(mStr);
+  };
+
   const StarRating = ({ rating }) => (
     <div className="flex items-center gap-1">
       {[...Array(5)].map((_, i) => (
@@ -246,12 +251,12 @@ export default function Feedback() {
                 </div>
               </div>
 
-              {selectedMonth !== 'all' && (
+              {!isAllTime && (
                 <div className="mt-3 flex items-center justify-between text-xs font-semibold text-indigo-700 bg-indigo-50/80 px-3 py-1.5 rounded-lg border border-indigo-100">
-                  <span>Filtered to: <strong>{formatMonthLabel(selectedMonth)}</strong> ({displayedFeedback.length} matching)</span>
+                  <span>Filtered to: <strong>{formatPeriodLabel()}</strong> ({displayedFeedback.length} matching)</span>
                   <button
-                    onClick={() => setSelectedMonth('all')}
-                    className="text-indigo-600 hover:text-indigo-800 underline ml-2"
+                    onClick={() => setIsAllTime(true)}
+                    className="text-indigo-600 hover:text-indigo-800 underline ml-2 cursor-pointer"
                   >
                     Reset to All Time
                   </button>
@@ -267,7 +272,7 @@ export default function Feedback() {
             ) : displayedFeedback.length === 0 ? (
               <div className="p-12 text-center text-slate-400">
                 <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-30 text-indigo-400" />
-                <p className="font-semibold text-slate-600">No feedback found for {formatMonthLabel(selectedMonth)}</p>
+                <p className="font-semibold text-slate-600">No feedback found for {formatPeriodLabel()}</p>
                 <p className="text-xs text-slate-400 mt-1">Try selecting another month or submitting the first review on the right.</p>
               </div>
             ) : (

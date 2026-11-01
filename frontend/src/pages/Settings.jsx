@@ -211,62 +211,6 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Maintenance Config Card */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-5">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Sliders className="w-5 h-5 text-indigo-600" />
-            <h2 className="text-lg font-bold text-slate-900">Maintenance &amp; Dues Rules</h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Default Monthly Amount (₹)
-              </label>
-              <input
-                type="number"
-                name="default_maintenance_amount"
-                value={form.default_maintenance_amount || ''}
-                onChange={handleChange}
-                disabled={!isAdmin}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Due Date (Day of Month)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="31"
-                name="due_date_day"
-                value={form.due_date_day || ''}
-                onChange={handleChange}
-                disabled={!isAdmin}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Grace Period (Days)
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="30"
-                name="grace_period_days"
-                value={form.grace_period_days || ''}
-                onChange={handleChange}
-                disabled={!isAdmin}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-              />
-            </div>
-          </div>
-        </div>
-
         {/* Action Button */}
         {isAdmin && (
           <div className="flex justify-end gap-3 pt-2">

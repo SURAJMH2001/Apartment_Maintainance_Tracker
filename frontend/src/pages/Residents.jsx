@@ -10,8 +10,9 @@ import toast from 'react-hot-toast';
 import { 
   Users, Plus, Search, Building2, Building, Phone, Mail, 
   ChevronRight, ChevronDown, ChevronUp, LayoutGrid, List,
-  CreditCard, Calendar, User, Home, CheckCircle2 
+  CreditCard, Calendar, User, Home, CheckCircle2, Car, Trash2 
 } from 'lucide-react';
+import useAuthStore from '../store/authStore';
 
 const sortFlats = (a, b) => {
   const valA = typeof a === 'string' ? a : (a?.unit_number || '');
@@ -43,41 +44,78 @@ export default function Residents() {
     notes: ''
   });
   
+  const currentUser = useAuthStore(state => state.user);
+  const rawRole = (currentUser?.role || 'viewer').toLowerCase().trim().replace(/_/g, '-');
+  const isAdmin = rawRole === 'admin' || rawRole === 'super-admin' || rawRole === 'superadmin' || rawRole === 'manager';
+
   const { data: rawResidents = [], isLoading } = useQuery({
     queryKey: ['residents'],
     queryFn: async () => {
       try {
         const res = await residentsApi.getAll();
         const list = Array.isArray(res.data) ? res.data : (res.data?.residents || []);
-        if (Array.isArray(list) && list.length > 0) {
-          return list.map(item => ({
-            id: item.id,
-            unit_number: item.unit_number || item.flat_number || '',
-            name: item.owner_name || item.name || '',
-            email: item.owner_email || item.email || '',
-            phone: item.owner_phone || item.phone || '',
-            type: item.ownership_type || item.type || 'owner',
-            move_in_date: item.move_in_date,
-            status: item.is_active !== false ? 'active' : 'inactive',
-            floor: item.floor,
-            notes: item.notes
-          }));
-        }
+        return list.map(item => ({
+          id: item.id,
+          unit_number: item.unit_number || item.flat_number || '',
+          name: item.owner_name || item.name || '',
+          email: item.owner_email || item.email || '',
+          phone: item.owner_phone || item.phone || '',
+          type: item.ownership_type || item.type || 'owner',
+          move_in_date: item.move_in_date,
+          status: item.is_active !== false ? 'active' : 'inactive',
+          floor: item.floor,
+          notes: item.notes
+        }));
       } catch (err) {
-        console.warn('Residents getAll fallback:', err);
+        console.warn('Residents getAll error:', err);
+        return [];
       }
-      return [
-        { id: 1, unit_number: 'NNG-GF1', name: 'BHARADWAJ BS', phone: '+91 9845011001', email: 'bharadwaj@association.com', type: 'owner', move_in_date: '2023-01-10', status: 'active', floor: 0 },
-        { id: 2, unit_number: 'NNG-TF2', name: 'SURAJ M.H', phone: '+91 9845022002', email: 'suraj@association.com', type: 'owner', move_in_date: '2023-02-15', status: 'active', floor: 3 },
-        { id: 3, unit_number: 'NB-FF1', name: 'SUBRAMANYA KASHYAP H B', phone: '+91 9845033003', email: 'subramanya@association.com', type: 'owner', move_in_date: '2023-03-20', status: 'active', floor: 1 },
-        { id: 4, unit_number: 'NB-FF2', name: 'PADMANAV ROUT', phone: '+91 9845044004', email: 'padmanav@association.com', type: 'owner', move_in_date: '2023-04-05', status: 'active', floor: 1 },
-        { id: 5, unit_number: 'NB-FF3', name: 'ABHISHEK N', phone: '+91 9845055005', email: 'abhishek@association.com', type: 'owner', move_in_date: '2023-05-12', status: 'owner', floor: 1 },
-        { id: 6, unit_number: 'NB-GF1', name: 'Hanumanth (BALAPPA B YARAZARI)', phone: '+91 9845066006', email: 'hanumanth@association.com', type: 'owner', move_in_date: '2023-06-18', status: 'active', floor: 0 },
-      ];
+    }
+  });
+
+  const { data: allVehicles = [] } = useQuery({
+    queryKey: ['vehicles-list'],
+    queryFn: async () => {
+      try {
+        const res = await residentsApi.getVehicles();
+        return Array.isArray(res.data) ? res.data : (res.data?.vehicles || []);
+      } catch {
+        return [];
+      }
     }
   });
 
   const residents = Array.isArray(rawResidents) ? rawResidents : [];
+
+  const getVehiclesForResident = (r) => {
+    return allVehicles.filter(v => 
+      String(v.resident_id) === String(r.id) ||
+      (v.flat_number && r.unit_number && v.flat_number.toUpperCase() === r.unit_number.toUpperCase()) ||
+      (v.unit_number && r.unit_number && v.unit_number.toUpperCase() === r.unit_number.toUpperCase())
+    );
+  };
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: (id) => residentsApi.toggleStatus(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['residents'] });
+      toast.success('Resident active status updated');
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.detail || 'Failed to update status');
+    }
+  });
+
+  const deleteResidentMutation = useMutation({
+    mutationFn: (id) => residentsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['residents'] });
+      toast.success('Resident profile deleted successfully');
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.detail || 'Failed to delete resident');
+    }
+  });
 
   const mutation = useMutation({
     mutationFn: (newResident) => residentsApi.create(newResident),
@@ -353,18 +391,67 @@ export default function Residents() {
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <h4 className="font-bold text-slate-900 text-sm">{r.name}</h4>
-                                    <Badge variant={r.status === 'active' ? 'success' : 'default'}>
-                                      {r.status}
-                                    </Badge>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleStatusMutation.mutate(r.id);
+                                      }}
+                                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors ${
+                                        r.status === 'active' 
+                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-rose-50 hover:text-rose-700' 
+                                          : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-emerald-50 hover:text-emerald-700'
+                                      }`}
+                                      title="Click to toggle active/inactive status"
+                                    >
+                                      {r.status === 'active' ? '● Active' : '○ Inactive'}
+                                    </button>
                                   </div>
                                   <p className="text-xs text-indigo-600 font-semibold capitalize mt-0.5">
                                     Occupancy: {r.type}
                                   </p>
                                 </div>
-                                <span className="text-xs font-mono font-bold px-2 py-0.5 bg-slate-100 rounded text-slate-700">
-                                  {r.unit_number}
-                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-mono font-bold px-2 py-0.5 bg-slate-100 rounded text-slate-700">
+                                    {r.unit_number}
+                                  </span>
+                                  {isAdmin && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (window.confirm(`Delete resident profile for "${r.name}" (${r.unit_number})?`)) {
+                                          deleteResidentMutation.mutate(r.id);
+                                        }
+                                      }}
+                                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                      title="Delete resident"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
+
+                              {/* Registered Vehicles Badge Display */}
+                              {(() => {
+                                const rVehicles = getVehiclesForResident(r);
+                                return rVehicles.length > 0 ? (
+                                  <div className="pt-2 border-t border-slate-100 flex items-center gap-1.5 flex-wrap">
+                                    <Car className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                    {rVehicles.map(v => (
+                                      <span key={v.id} className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                        {v.vehicle_number} {v.parking_slot ? `(${v.parking_slot})` : ''}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="pt-1.5 border-t border-slate-100 flex items-center gap-1 text-[11px] text-slate-400">
+                                    <Car className="w-3.5 h-3.5 opacity-40 shrink-0" />
+                                    <span>0 registered vehicles</span>
+                                  </div>
+                                );
+                              })()}
 
                               <div className="space-y-1 text-xs text-slate-600 pt-2 border-t border-slate-100">
                                 {r.phone && (
@@ -440,10 +527,13 @@ export default function Residents() {
                         Ownership Type
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                        Vehicles
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
                         Move-in Date
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                        Status
+                        Status (Click to Toggle)
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
                         Actions
@@ -451,41 +541,88 @@ export default function Residents() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-slate-200">
-                    {filteredResidents.map(r => (
-                      <tr 
-                        key={r.id} 
-                        className="hover:bg-slate-50 cursor-pointer transition-colors" 
-                        onClick={() => navigate(`/residents/${r.id}`)}
-                      >
-                        <td className="sticky left-0 bg-white hover:bg-slate-50 z-10 px-4 py-3 whitespace-nowrap text-sm font-bold text-indigo-700 text-center border-r border-slate-100 shadow-[1px_0_0_0_#e2e8f0]">
-                          {r.unit_number}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-slate-900 text-center">
-                          {r.name}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600 text-center font-mono">
-                          {r.phone || '—'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600 capitalize text-center">
-                          <span className="inline-block px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
-                            {r.type}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500 text-center">
-                          {r.move_in_date ? formatDate(r.move_in_date) : '—'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-center">
-                          <Badge variant={r.status === 'active' ? 'success' : 'default'}>
-                            {r.status}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-center text-xs font-semibold text-indigo-600 hover:text-indigo-800">
-                          <span className="inline-flex items-center gap-0.5">
-                            View Profile <ChevronRight className="w-3.5 h-3.5" />
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredResidents.map(r => {
+                      const rVehicles = getVehiclesForResident(r);
+                      return (
+                        <tr 
+                          key={r.id} 
+                          className="hover:bg-slate-50 cursor-pointer transition-colors" 
+                          onClick={() => navigate(`/residents/${r.id}`)}
+                        >
+                          <td className="sticky left-0 bg-white hover:bg-slate-50 z-10 px-4 py-3 whitespace-nowrap text-sm font-bold text-indigo-700 text-center border-r border-slate-100 shadow-[1px_0_0_0_#e2e8f0]">
+                            {r.unit_number}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-slate-900 text-center">
+                            {r.name}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600 text-center font-mono">
+                            {r.phone || '—'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600 capitalize text-center">
+                            <span className="inline-block px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
+                              {r.type}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-xs text-center font-mono">
+                            {rVehicles.length > 0 ? (
+                              <div className="flex items-center justify-center gap-1 flex-wrap max-w-xs mx-auto">
+                                <Car className="w-3.5 h-3.5 text-indigo-500" />
+                                {rVehicles.map(v => (
+                                  <span key={v.id} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[11px] font-bold border border-indigo-100">
+                                    {v.vehicle_number}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-xs">None</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500 text-center">
+                            {r.move_in_date ? formatDate(r.move_in_date) : '—'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleStatusMutation.mutate(r.id);
+                              }}
+                              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
+                                r.status === 'active'
+                                  ? 'bg-emerald-100 text-emerald-800 hover:bg-rose-100 hover:text-rose-800'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-800'
+                              }`}
+                              title="Click to toggle status"
+                            >
+                              {r.status === 'active' ? '● Active' : '○ Inactive'}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center text-xs font-semibold">
+                            <div className="flex items-center justify-center gap-2" onClick={e => e.stopPropagation()}>
+                              <button
+                                onClick={() => navigate(`/residents/${r.id}`)}
+                                className="text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-0.5"
+                              >
+                                View Profile <ChevronRight className="w-3.5 h-3.5" />
+                              </button>
+                              {isAdmin && (
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`Delete resident profile for "${r.name}" (${r.unit_number})?`)) {
+                                      deleteResidentMutation.mutate(r.id);
+                                    }
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ml-1"
+                                  title="Delete resident"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

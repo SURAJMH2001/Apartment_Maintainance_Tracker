@@ -55,32 +55,6 @@ def get_resident(id: int, db: Session = Depends(get_db), current_user = Depends(
     resident = resident_repo.get(db, id)
     if not resident:
         raise HTTPException(status_code=404, detail="Resident not found")
-    
-    cleaned = (current_user.role or "").strip().lower().replace("_", "-")
-    is_admin = cleaned in ["admin", "super-admin", "superadmin", "manager"]
-    if not is_admin:
-        user_res = db.query(Resident).filter(Resident.id == getattr(current_user, "resident_id", None)).first()
-        user_unit = getattr(current_user, "unit_number", None) or (user_res.unit_number if user_res else None)
-        if not user_unit or user_unit.strip().lower() != resident.unit_number.strip().lower():
-            # Mask sensitive contact details for different flats
-            return ResidentResponse(
-                id=resident.id,
-                block=resident.block,
-                flat_number=resident.flat_number,
-                unit_number=resident.unit_number,
-                floor=resident.floor,
-                owner_name=resident.owner_name,
-                owner_email=None,
-                owner_phone=None,
-                alternate_phone=None,
-                ownership_type=resident.ownership_type,
-                move_in_date=resident.move_in_date,
-                is_active=resident.is_active,
-                notes=None,
-                created_at=resident.created_at,
-                updated_at=resident.updated_at
-            )
-
     return resident
 
 @router.put("/{id}", response_model=ResidentResponse)
@@ -194,15 +168,7 @@ def get_resident_payments(id: int, db: Session = Depends(get_db), current_user =
     if not resident:
         raise HTTPException(status_code=404, detail="Resident not found")
     
-    cleaned = (current_user.role or "").strip().lower().replace("_", "-")
-    is_admin = cleaned in ["admin", "super-admin", "superadmin", "manager"]
-    if not is_admin:
-        user_res = db.query(Resident).filter(Resident.id == getattr(current_user, "resident_id", None)).first()
-        user_unit = getattr(current_user, "unit_number", None) or (user_res.unit_number if user_res else None)
-        if not user_unit or user_unit.strip().lower() != resident.unit_number.strip().lower():
-            return []
-
-    return db.query(Payment).filter(Payment.resident_id == id).all()
+    return db.query(Payment).filter(Payment.resident_id == id).order_by(Payment.month.desc()).all()
 
 @router.get("/{id}/transactions")
 def get_resident_transactions(id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
